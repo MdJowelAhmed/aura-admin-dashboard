@@ -67,3 +67,69 @@ export interface GenderDistribution {
   };
 }
 
+
+
+
+// user management page 
+
+interface User {
+  location: {
+    type: string;
+    coordinates: [number, number];
+  };
+  accountInformation: {
+    status: boolean;
+  };
+  _id: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  phoneNumber: string | null;
+  email: string;
+  profile: string | null;
+  documentVerified: string[] | null;
+  photo: string | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  verified: boolean;
+  status: string;
+  userReport: string;
+  stripeAccountId: string | null;
+  myInterested: string[];
+  drinking: boolean;
+  marijuana: boolean;
+  smoking: boolean;
+  gender: string;
+  children: boolean;
+  politics: string;
+  educationLevel: string;
+  balance: number;
+  availableTime: number;
+  lastActive: string; // ISO date string
+  createdAt: string;  // ISO date string
+  updatedAt: string;  // ISO date string
+  age?: number;
+  maxAge?: number;
+  minAge?: number;
+  height?: number;
+}
+
+interface Pagination {
+  total: number;
+  limit: number;
+  page: number;
+  totalPage: number;
+}
+
+interface UsersData {
+  pagination: Pagination;
+  data: User[];
+}
+
+export interface UsersResponse {
+  success: boolean;
+  message: string;
+  data: UsersData;
+}
+
+
