@@ -1,0 +1,153 @@
+// ...existing code...
+"use client";
+
+import type React from "react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useLoginMutation } from "@/lib/store/apiSlice/authSlice";
+
+export function LoginForm() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [login] = useLoginMutation();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await login({
+        email: email.trim(),
+        password: password,
+      }).unwrap();
+
+      if (response.success && response.data) {
+        const accessToken = response.data.accessToken;
+        const refreshToken = response.data.refreshToken;
+
+        // Save tokens to cookies
+        if (typeof window !== "undefined") {
+          document.cookie = `accessToken=${accessToken}; path=/; max-age=86400; SameSite=Strict`;
+          document.cookie = `refreshToken=${refreshToken}; path=/; max-age=604800; SameSite=Strict`;
+        }
+
+        // Navigate to home page
+        router.push("/");
+      } else {
+        setError(response.message || "Login failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Login failed", err);
+      let errorMessage = "An unexpected error occurred. Please check your email and password.";
+      if (err && typeof err === "object") {
+        const error_obj = err as Record<string, unknown>;
+        if (error_obj?.data && typeof error_obj.data === "object") {
+          const data_obj = error_obj.data as Record<string, unknown>;
+          if (data_obj?.message && typeof data_obj.message === "string") {
+            errorMessage = data_obj.message;
+          }
+        } else if (error_obj?.message && typeof error_obj.message === "string") {
+          errorMessage = error_obj.message;
+        }
+      }
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="space-y-2 text-center">
+        <h1 className="text-3xl font-semibold text-white">Synex</h1>
+        <p className="text-neutral-300 text-lg">
+          Welcome back! Please enter your details.
+        </p>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Email Input */}
+        <div className="space-y-2">
+          <Label htmlFor="email" className="sr-only">
+            Email
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="h-12 bg-neutral-300/50 border-neutral-50 text-white placeholder:text-neutral-50 focus:border-cyan-400 focus:ring-cyan-200/20"
+            required
+          />
+        </div>
+
+        {/* Password Input */}
+        <div className="space-y-2">
+          <Label htmlFor="password" className="sr-only">
+            Password
+          </Label>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-12 bg-neutral-300/50 border-neutral-50 text-white placeholder:text-neutral-50 focus:border-cyan-400 focus:ring-cyan-50/20 pr-10"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2"
+            >
+              {showPassword ? (
+                <EyeOff className="h-5 w-5 text-white" />
+              ) : (
+                <Eye className="h-5 w-5 text-white" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Forgot Password Link */}
+        <div className="text-right">
+          <Link href={"/auth/forgot-password"}>
+            <button type="button" className=" text-sm t">
+              Forgot password?
+            </button>
+          </Link>
+        </div>
+
+        {/* Sign In Button */}
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="w-full h-12 border bg-sky-400 hover:bg-sky-500 text-neutral-50 font-semibold text-lg transition-colors"
+        >
+          {isLoading ? "Signing in..." : "Sign In"}
+        </Button>
+
+        {error && <div className="text-sm text-red-500">{error}</div>}
+
+      </form>
+    </div>
+  );
+}
+// ...existing code...
