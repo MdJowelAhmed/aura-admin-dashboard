@@ -84,9 +84,6 @@ export const authApi = api.injectEndpoints({
           if (typeof window !== "undefined") {
             localStorage.setItem("accessToken", access);
             localStorage.setItem("refreshToken", refresh);
-            // Also set cookie for middleware access
-            document.cookie = `accessToken=${access}; path=/; max-age=86400; SameSite=Strict`;
-            document.cookie = `refreshToken=${refresh}; path=/; max-age=604800; SameSite=Strict`;
           }
           dispatch(
             setCredentials({ user, accessToken: access, refreshToken: refresh })
@@ -104,23 +101,9 @@ export const authApi = api.injectEndpoints({
       async onQueryStarted(arg, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
-          if (typeof window !== "undefined") {
-            // Clear localStorage
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
-            // Clear cookies by setting expiration to past date
-            document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-            document.cookie = "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-          }
           dispatch(logout());
         } catch {
           // Even if API call fails, clear local storage and dispatch logout
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
-            document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-            document.cookie = "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-          }
           dispatch(logout());
         }
       },

@@ -2,17 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const accessToken = request.cookies.get("accessToken")?.value;
 
-  // Redirect to login if accessing dashboard without token
-  if (pathname.startsWith("/dashboard") && !accessToken) {
-    return NextResponse.redirect(new URL("/auth/login", request.url));
-  }
-
-  // Redirect to dashboard if already logged in and accessing login
-  if (pathname.startsWith("/auth/login") && accessToken) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+  // Note: Since we're using localStorage (client-side only), we can't check tokens here
+  // Token validation will happen on the client-side through Redux and protected components
+  // This middleware just allows all requests to pass through
 
   return NextResponse.next();
 }

@@ -36,15 +36,7 @@ export function LoginForm() {
       }).unwrap();
 
       if (response.success && response.data) {
-        const accessToken = response.data.accessToken;
-        const refreshToken = response.data.refreshToken;
-
-        // Save tokens to cookies
-        if (typeof window !== "undefined") {
-          document.cookie = `accessToken=${accessToken}; path=/; max-age=86400; SameSite=Strict`;
-          document.cookie = `refreshToken=${refreshToken}; path=/; max-age=604800; SameSite=Strict`;
-        }
-
+        // Tokens are already saved to localStorage by the mutation
         // Navigate to home page
         router.push("/");
       } else {
