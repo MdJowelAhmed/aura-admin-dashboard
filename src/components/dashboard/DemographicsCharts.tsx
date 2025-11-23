@@ -6,7 +6,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { useAgeDistributionQuery } from "@/lib/store/dashbaord/dashbaordOverviewApi";
+import { useAgeDistributionQuery, useEthnicityDistributionQuery } from "@/lib/store/dashbaord/dashbaordOverviewApi";
 import {
   BarChart,
   Bar,
@@ -33,14 +33,6 @@ const raceData = [
   { race: "Others", value: 70 },
 ];
 
-const ageData = [
-  { age: "18-24", value: 45 },
-  { age: "25-34", value: 65 },
-  { age: "35-44", value: 85 },
-  { age: "45-54", value: 75 },
-  { age: "55+", value: 55 },
-];
-
 const genderData = [
   { name: "Man", value: 33.3, color: "#8b5cf6" },
   { name: "Woman", value: 38.33, color: "#10b981" },
@@ -51,7 +43,30 @@ const genderData = [
 
 export function DemographicsCharts() {
   const { data: ageDistribution } = useAgeDistributionQuery();
+  const { data: ethnicityDistribution } = useEthnicityDistributionQuery();
   console.log(ageDistribution)
+  console.log(ethnicityDistribution)
+
+  // Transform ethnicity data from API
+  const raceDataDynamic = ethnicityDistribution?.data
+    ? Object.entries(ethnicityDistribution.data)
+        .filter(([key]) => key !== "Unknown" && key !== "Pisces") // Exclude Unknown and Pisces
+        .map(([race, value]) => ({ race, value }))
+    : raceData;
+
+  // Age Distribution data - Transform API data to chart format
+  const ageData = ageDistribution?.data
+    ? Object.entries(ageDistribution.data)
+        .filter(([key]) => key !== "Unknown") // Exclude Unknown category
+        .map(([age, value]) => ({ age, value }))
+    : [
+        { age: "18-24", value: 0 },
+        { age: "25-34", value: 0 },
+        { age: "35-44", value: 0 },
+        { age: "45-54", value: 0 },
+        { age: "55+", value: 0 },
+        { age: "65+", value: 0 },
+      ];
 
   return (
     <div className="space-y-6">
@@ -127,7 +142,7 @@ export function DemographicsCharts() {
           >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={raceData}
+                data={raceDataDynamic}
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useAgeDistributionQuery } from "@/lib/store/dashbaord/dashbaordOverviewApi";
+import { useAgeDistributionQuery, useEthnicityDistributionQuery, useGenderdistributionQuery } from "@/lib/store/dashbaord/dashbaordOverviewApi";
 import React from "react";
 import {
   BarChart,
@@ -40,35 +40,52 @@ interface GenderData extends ChartData {
 }
 
 const DemographicsDashboard: React.FC = () => {
-const { data: ageDistribution } = useAgeDistributionQuery();
-  console.log(ageDistribution)
+  const { data: ageDistribution } = useAgeDistributionQuery();
+  console.log(ageDistribution);
+  const { data: ethnicityDistribution } = useEthnicityDistributionQuery();
+  console.log(ethnicityDistribution);
+  const { data: genderDistribution } = useGenderdistributionQuery();
+  console.log(genderDistribution);
 
-  // Race/Ethnicity data
-  const raceData: ChartData[] = [
-    { name: "White", value: 76 },
-    { name: "Asian", value: 84 },
-    { name: "Hispanic", value: 96 },
-    { name: "Black", value: 82 },
-    { name: "Others", value: 88 },
-  ];
+  // Race/Ethnicity data - Transform API data
+  const raceData: ChartData[] = ethnicityDistribution?.data
+    ? Object.entries(ethnicityDistribution.data).map(([name, value]) => ({
+        name,
+        value: typeof value === "number" ? value : 0,
+      }))
+    : [];
 
-  // Age Distribution data
-  const ageData: ChartData[] = [
-    { name: "18-24", value: 75 },
-    { name: "25-34", value: 82 },
-    { name: "35-44", value: 78 },
-    { name: "45-54", value: 95 },
-    { name: "55+", value: 88 },
-  ];
+  // Age Distribution data - Transform API data to chart format
+  const ageData: ChartData[] = ageDistribution?.data
+    ? Object.entries(ageDistribution.data).map(([name, value]) => ({
+        name,
+        value: typeof value === "number" ? value : 0,
+      }))
+    : [];
 
-  // Gender Distribution data
-  const genderData: GenderData[] = [
-    { name: "Men", value: 93, percentage: "31.00%", color: "#6366F1" },
-    { name: "Women", value: 85, percentage: "28.33%", color: "#10B981" },
-    { name: "Non-Binary", value: 53, percentage: "17.67%", color: "#F59E0B" },
-    { name: "Trans Men", value: 43, percentage: "14.33%", color: "#06B6D4" },
-    { name: "Trans Women", value: 26, percentage: "8.67%", color: "#A855F7" },
-  ];
+  // Gender Distribution data - Transform API data
+  const genderData: GenderData[] = genderDistribution?.data
+    ? Object.entries(genderDistribution.data)
+        .map(([key, data]: [string, any]) => {
+          const value = data.total || 0;
+          const percentage = data.percentage || "0%";
+          // Map gender keys to display names
+          const nameMap: Record<string, string> = {
+            MAN: "Men",
+            WOMEN: "Women",
+            "NON-BINARY": "Non-Binary",
+            "TRANS MAN": "Trans Men",
+            "TRANS WOMAN": "Trans Women",
+            Unknown: "Unknown",
+          };
+          return {
+            name: nameMap[key] || key,
+            value,
+            percentage,
+            color: "#6366F1",
+          };
+        })
+    : [];
 
   const COLORS: string[] = [
     "#6366F1",
@@ -76,7 +93,14 @@ const { data: ageDistribution } = useAgeDistributionQuery();
     "#F59E0B",
     "#06B6D4",
     "#A855F7",
+    "#EF4444",
   ];
+
+  // Assign colors to gender data
+  const genderDataWithColors: GenderData[] = genderData.map((item, index) => ({
+    ...item,
+    color: COLORS[index % COLORS.length],
+  }));
   const getTrianglePath = (
     x: number,
     y: number,
@@ -110,9 +134,8 @@ const { data: ageDistribution } = useAgeDistributionQuery();
 
   return (
     <div className="">
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mx-auto">
-        {/* Race/Ethnicity Chart */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+         {/* Race/Ethnicity Chart */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 mb-6">
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">
               Race / Ethnicity
@@ -183,6 +206,8 @@ const { data: ageDistribution } = useAgeDistributionQuery();
             </ResponsiveContainer>
           </div>
         </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6 mx-auto">
+     
 
         {/* Age Distribution Chart */}
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
@@ -263,76 +288,159 @@ const { data: ageDistribution } = useAgeDistributionQuery();
           <div className="relative">
             {/* Pie Chart Container */}
             <div className="h-64 flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={genderData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={90}
-                    innerRadius={0}
-                    fill="#8884d8"
-                    dataKey="value"
-                    strokeWidth={2}
-                    stroke="#ffffff"
-                  >
-                    {genderData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index]} />
+              {genderDataWithColors.some((item) => item.value > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={genderDataWithColors}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      innerRadius={0}
+                      fill="#8884d8"
+                      dataKey="value"
+                      strokeWidth={2}
+                      stroke="#ffffff"
+                    >
+                      {genderDataWithColors.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-center text-gray-500">
+                  <p className="text-sm">No data available</p>
+                </div>
+              )}
+            </div>
+
+            {/* Dynamic Labels positioned around the pie chart */}
+            {genderDataWithColors.length > 0 && (
+              <>
+                {genderDataWithColors[0] && (
+                  <div className="absolute top-4 right-4 text-sm text-right">
+                    <div className="text-gray-600 mb-1">{genderDataWithColors[0].name}</div>
+                    <div className="font-semibold" style={{ color: genderDataWithColors[0].color }}>
+                      {genderDataWithColors[0].value}{" "}
+                      <span className="text-gray-500 font-normal">
+                        {genderDataWithColors[0].percentage}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {genderDataWithColors[1] && (
+                  <div className="absolute top-16 right-2 text-sm text-right">
+                    <div className="text-gray-600 mb-1">{genderDataWithColors[1].name}</div>
+                    <div className="font-semibold" style={{ color: genderDataWithColors[1].color }}>
+                      {genderDataWithColors[1].value}{" "}
+                      <span className="text-gray-500 font-normal">
+                        {genderDataWithColors[1].percentage}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {genderDataWithColors[2] && (
+                  <div className="absolute bottom-16 left-2 text-sm">
+                    <div className="text-gray-600 mb-1">{genderDataWithColors[2].name}</div>
+                    <div className="font-semibold" style={{ color: genderDataWithColors[2].color }}>
+                      {genderDataWithColors[2].value}{" "}
+                      <span className="text-gray-500 font-normal">
+                        {genderDataWithColors[2].percentage}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {genderDataWithColors[3] && (
+                  <div className="absolute bottom-20 left-2 text-sm">
+                    <div className="text-gray-600 mb-1">{genderDataWithColors[3].name}</div>
+                    <div className="font-semibold" style={{ color: genderDataWithColors[3].color }}>
+                      {genderDataWithColors[3].value}{" "}
+                      <span className="text-gray-500 font-normal">
+                        {genderDataWithColors[3].percentage}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {genderDataWithColors[4] && (
+                  <div className="absolute top-4 left-4 text-sm">
+                    <div className="text-gray-600 mb-1">{genderDataWithColors[4].name}</div>
+                    <div className="font-semibold" style={{ color: genderDataWithColors[4].color }}>
+                      {genderDataWithColors[4].value}{" "}
+                      <span className="text-gray-500 font-normal">
+                        {genderDataWithColors[4].percentage}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {genderDataWithColors[5] && (
+                  <div className="absolute bottom-4 left-4 text-sm">
+                    <div className="text-gray-600 mb-1">{genderDataWithColors[5].name}</div>
+                    <div className="font-semibold" style={{ color: genderDataWithColors[5].color }}>
+                      {genderDataWithColors[5].value}{" "}
+                      <span className="text-gray-500 font-normal">
+                        {genderDataWithColors[5].percentage}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Bottom Legend / Data Table */}
+          {/* <div className="mt-6">
+            {genderDataWithColors.some((item) => item.value > 0) ? (
+              <div className="flex flex-wrap justify-center gap-4 text-sm">
+                {genderDataWithColors.map((item) => (
+                  <div key={item.name} className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-gray-700">{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                        Gender
+                      </th>
+                      <th className="px-4 py-2 text-right font-semibold text-gray-700">
+                        Count
+                      </th>
+                      <th className="px-4 py-2 text-right font-semibold text-gray-700">
+                        Percentage
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {genderDataWithColors.map((item) => (
+                      <tr key={item.name} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-2 text-gray-700 flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          {item.name}
+                        </td>
+                        <td className="px-4 py-2 text-right text-gray-600">
+                          {item.value}
+                        </td>
+                        <td className="px-4 py-2 text-right text-gray-600">
+                          {item.percentage}
+                        </td>
+                      </tr>
                     ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Custom Labels positioned around the pie chart */}
-            <div className="absolute top-4 left-4 text-sm">
-              <div className="text-gray-600 mb-1">Trans Women</div>
-              <div className="font-semibold text-purple-600">
-                26 <span className="text-gray-500 font-normal">8.67%</span>
+                  </tbody>
+                </table>
               </div>
-            </div>
-
-            <div className="absolute top-16 left-2 text-sm">
-              <div className="text-gray-600 mb-1">Trans Men</div>
-              <div className="font-semibold text-cyan-600">
-                43 <span className="text-gray-500 font-normal">14.33%</span>
-              </div>
-            </div>
-
-            <div className="absolute top-4 right-4 text-sm text-right">
-              <div className="text-gray-600 mb-1">Men</div>
-              <div className="font-semibold text-indigo-600">
-                93 <span className="text-gray-500 font-normal">31.00%</span>
-              </div>
-            </div>
-
-            <div className="absolute bottom-20 right-4 text-sm text-right">
-              <div className="text-gray-600 mb-1">Women</div>
-              <div className="font-semibold text-green-600">
-                85 <span className="text-gray-500 font-normal">28.33%</span>
-              </div>
-            </div>
-
-            <div className="absolute bottom-16 left-2 text-sm">
-              <div className="text-gray-600 mb-1">Non-Binary</div>
-              <div className="font-semibold text-amber-600">
-                53 <span className="text-gray-500 font-normal">17.67%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Legend */}
-          <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm">
-            {genderData.map((item, index) => (
-              <div key={item.name} className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: COLORS[index] }}
-                />
-                <span className="text-gray-700">{item.name}</span>
-              </div>
-            ))}
-          </div>
+            )}
+          </div> */}
         </div>
       </div>
     </div>
