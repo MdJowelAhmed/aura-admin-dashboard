@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useAgeDistributionQuery } from "@/lib/store/dashbaord/dashbaordOverviewApi";
 import React from "react";
 import {
   BarChart,
@@ -39,6 +40,9 @@ interface GenderData extends ChartData {
 }
 
 const DemographicsDashboard: React.FC = () => {
+const { data: ageDistribution } = useAgeDistributionQuery();
+  console.log(ageDistribution)
+
   // Race/Ethnicity data
   const raceData: ChartData[] = [
     { name: "White", value: 76 },

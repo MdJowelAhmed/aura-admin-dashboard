@@ -6,6 +6,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { useAgeDistributionQuery } from "@/lib/store/dashbaord/dashbaordOverviewApi";
 import {
   BarChart,
   Bar,
@@ -49,6 +50,9 @@ const genderData = [
 ];
 
 export function DemographicsCharts() {
+  const { data: ageDistribution } = useAgeDistributionQuery();
+  console.log(ageDistribution)
+
   return (
     <div className="space-y-6">
       {/* User Retention */}
