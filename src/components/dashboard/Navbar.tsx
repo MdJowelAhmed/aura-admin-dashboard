@@ -17,6 +17,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ConfirmLogoutModal from "./ConfirmLogoutModal";
+import { useLogoutMutation } from "@/lib/store/apiSlice/authSlice";
+import { useDispatch } from "react-redux";
+import { logout as logoutAction } from "@/lib/store/authSlice/authSlice";
 
 const Navbar = () => {
   const [pathname, setPathname] = useState("");
@@ -25,16 +28,21 @@ const Navbar = () => {
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   const router = useRouter();
+  const [logout] = useLogoutMutation();
+  const dispatch = useDispatch();
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
     try {
-      localStorage.removeItem("token");
-      localStorage.removeItem("auth");
-      sessionStorage.removeItem("token");
-    } catch {
-      // ignore storage errors
+      // Call the logout mutation which clears tokens from API, storage & state
+      await logout().unwrap();
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Even if API fails, clear local state
+      dispatch(logoutAction());
+    } finally {
+      // Navigate to login regardless of API outcome
+      router.push("/auth/login");
     }
-    router.push("/auth/login");
   };
 
   useEffect(() => {

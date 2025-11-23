@@ -43,6 +43,9 @@ const authSlice = createSlice({
       if (typeof window !== "undefined") {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
+        // Clear cookies by setting expiration to past date
+        document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+        document.cookie = "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
       }
     },
   },

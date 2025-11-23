@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLoginMutation } from "@/lib/store/apiSlice/authSlice";
+import toast from "react-hot-toast";
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -49,21 +50,20 @@ export function LoginForm() {
       } else {
         setError(response.message || "Login failed. Please try again.");
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Login failed", err);
-      let errorMessage = "An unexpected error occurred. Please check your email and password.";
-      if (err && typeof err === "object") {
-        const error_obj = err as Record<string, unknown>;
-        if (error_obj?.data && typeof error_obj.data === "object") {
-          const data_obj = error_obj.data as Record<string, unknown>;
-          if (data_obj?.message && typeof data_obj.message === "string") {
-            errorMessage = data_obj.message;
-          }
-        } else if (error_obj?.message && typeof error_obj.message === "string") {
-          errorMessage = error_obj.message;
-        }
+
+      // Short & safe way to read error message
+      let message = "Something went wrong. Please check your email and password.";
+
+      if (typeof err === "string") {
+        message = err;
+      } else if (typeof err === "object" && err !== null) {
+        const e = err as { data?: { message?: string }; message?: string };
+        message = e.data?.message || e.message || message;
       }
-      setError(errorMessage);
+
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

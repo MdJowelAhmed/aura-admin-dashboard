@@ -33,6 +33,7 @@ const routeToTitleMap: Record<string, string> = {
 
 import { logout as logoutAction } from "@/lib/store/authSlice/authSlice";
 import { useDispatch } from "react-redux";
+import { useLogoutMutation } from "@/lib/store/apiSlice/authSlice";
 
 const Header = ({
   setActiveTabShow,
@@ -44,6 +45,7 @@ const Header = ({
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useDispatch();
+  const [logout] = useLogoutMutation();
   const currentTab = pathname.split("/")[1] || "dashboard";
 
   // Modals
@@ -99,14 +101,18 @@ const Header = ({
     }, 0);
   };
 
-  const confirmLogout = () => {
-    if (typeof onLogout === "function") {
-      onLogout();
-      return;
+  const confirmLogout = async () => {
+    try {
+      // Call the logout mutation which clears tokens from API, storage & state
+      await logout().unwrap();
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Even if API fails, clear local state
+      dispatch(logoutAction());
+    } finally {
+      // Navigate to login regardless of API outcome
+      router.push("/auth/login");
     }
-    // dispatch logout action which clears tokens from storage & state
-    dispatch(logoutAction());
-    router.push("/auth/login");
   };
 
   const openNotifications = () => setNotifOpen(true);
