@@ -1,10 +1,8 @@
 "use client";
 
-
 import { Input } from "@/components/ui/input";
-import { useMemo, useState } from "react";
+import {  useMemo, useState } from "react";
 import { UserTable } from "./UserTable";
-import UserReportDialog from "@/components/modal/UserReportDialog";
 // import UserProfileDialog from "@/components/modal/UserProfileDialog";
 import {
   Select,
@@ -20,6 +18,7 @@ import { useGetAllUsersQuery } from "@/lib/store/userManage/userManagementApi";
 import CustomPagination from "@/components/share/CustomPagination";
 import UserProfileDialog from "./UserProfileDialog";
 import { useRouter, useSearchParams } from "next/navigation";
+import { debounce } from "@/components/share/debounce";
 
 type StatusFilter = "Status" | "active" | "block";
 type UserTypeFilter = "All" | "ADMIN" | "MODERATOR" | "USER";
@@ -45,69 +44,71 @@ export interface User {
 }
 
 export function UserManagement() {
-  // const [perPage,setPerPage]=useState(5);
   const itemsPerPage = 4;
-  // const [currentPage, setCurrentPage] = useState(1);
-  //   const [search, setSearch] = useState("");
-  // const [statusFilter, setStatusFilter] = useState<StatusFilter>("Status");
-  // const [userTypeFilter, setUserTypeFilter] = useState<UserTypeFilter>("All");
   const router = useRouter();
-const params = useSearchParams();
+  const params = useSearchParams();
 
-const search = params.get("search") || "";
-const statusFilter = (params.get("status") as StatusFilter) || "Status";
-const userTypeFilter = (params.get("role") as UserTypeFilter) || "All";
-const currentPage = (params.get("page") || "1");
+  const search = params.get("search") || "";
+  const statusFilter = (params.get("status") as StatusFilter) || "Status";
+  const userTypeFilter = (params.get("role") as UserTypeFilter) || "All";
+  const currentPage = params.get("page") || "1";
 
+  const [searchValue, setSearchValue] = useState(search);
 
- const queryParams = [
-  { name: "page", value: String(currentPage) },
-  { name: "limit", value: String(itemsPerPage) }
-];
+  const queryParams = [
+    { name: "page", value: String(currentPage) },
+    { name: "limit", value: String(itemsPerPage) },
+  ];
 
-if (search) queryParams.push({ name: "searchTerm", value: search });
-if (statusFilter !== "Status") queryParams.push({ name: "status", value: statusFilter });
-if (userTypeFilter !== "All") queryParams.push({ name: "role", value: userTypeFilter });
+  if (search) queryParams.push({ name: "searchTerm", value: search });
+  if (statusFilter !== "Status")
+    queryParams.push({ name: "status", value: statusFilter });
+  if (userTypeFilter !== "All")
+    queryParams.push({ name: "role", value: userTypeFilter });
 
   const { data, isLoading, error } = useGetAllUsersQuery(queryParams);
 
-
-
-
   // Report modal
-  const [reportOpen, setReportOpen] = useState(false);
-  const [reportMode, setReportMode] = useState<"view" | "edit">("view");
-  const [reportUser, setReportUser] = useState<User | null>(null);
+  // const [reportOpen, setReportOpen] = useState(false);
+  // const [reportMode, setReportMode] = useState<"view" | "edit">("view");
+  // const [reportUser, setReportUser] = useState<User | null>(null);
 
   // Profile modal
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileUser, setProfileUser] = useState<User | null>(null);
 
-  const openReport = (user: User, mode: "view" | "edit") => {
-    setReportUser(user);
-    setReportMode(mode);
-    setReportOpen(true);
-  };
+  // const openReport = (user: User, mode: "view" | "edit") => {
+  //   setReportUser(user);
+  //   setReportMode(mode);
+  //   setReportOpen(true);
+  // };
 
   const updateQuery = (key: string, value: string) => {
-  const query = new URLSearchParams(params.toString());
-  if (value) query.set(key, value);
-  else query.delete(key);
+    const query = new URLSearchParams(params.toString());
+    if (value) query.set(key, value);
+    else query.delete(key);
 
-  router.push(`?${query.toString()}`, { scroll: false });
-};
-
+    router.push(`?${query.toString()}`, { scroll: false });
+  };
 
   const openProfile = (user: User) => {
     setProfileUser(user);
     setProfileOpen(true);
   };
 
+  const debouncedSearchUpdate = useMemo(
+    () => debounce((value: string) => updateQuery("search", value), 500),
 
+    []
+  );
+
+  // useEffect(() => {
+  //   updateQuery("search", debouncedSearchUpdate);
+  // }, [debouncedSearchUpdate]);
 
   const currentUsers = data?.data?.data || [];
-  const totalPages = data?.data?.pagination?.totalPage ;
-  console.log(totalPages)
+  const totalPages = data?.data?.pagination?.totalPage;
+  console.log(totalPages);
 
   if (isLoading) {
     return (
@@ -133,9 +134,12 @@ if (userTypeFilter !== "All") queryParams.push({ name: "role", value: userTypeFi
         <div className="w-full sm:w-100">
           <Input
             placeholder="Search by name, email or phone"
-            value={search}
-            onChange={(e) => updateQuery("search", e.target.value)}
-            className="bg-white/20 backdrop-blur-sm border border-white/50 text-white h-12"
+            value={searchValue}
+            onChange={(e) => {
+              setSearchValue(e.target.value);
+              debouncedSearchUpdate(e.target.value);
+            }}
+            className="bg-white/20 backdrop-blur-sm border border-white/50 text-white h-12 placeholder:text-white"
           />
         </div>
 
@@ -146,7 +150,7 @@ if (userTypeFilter !== "All") queryParams.push({ name: "role", value: userTypeFi
             value={userTypeFilter}
             onValueChange={(v) => updateQuery("role", v as UserTypeFilter)}
           >
-            <SelectTrigger className="w-40 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
+            <SelectTrigger className="w-48 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4 text-white" />
                 <SelectValue placeholder="User Type" />
@@ -165,7 +169,7 @@ if (userTypeFilter !== "All") queryParams.push({ name: "role", value: userTypeFi
             value={statusFilter}
             onValueChange={(v) => updateQuery("status", v as StatusFilter)}
           >
-            <SelectTrigger className="w-32 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
+            <SelectTrigger className="w-40 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4 text-white" />
                 <SelectValue placeholder="Status" />
@@ -184,20 +188,17 @@ if (userTypeFilter !== "All") queryParams.push({ name: "role", value: userTypeFi
       <div className="flex flex-col justify-end items-end">
         <UserTable
           users={currentUsers}
-          onReportView={openReport}
+          // onReportView={openReport}
           onViewProfile={openProfile}
-          
         />
 
         {/* Pagination */}
         {totalPages > 1 && (
-       
           <CustomPagination
             maxVisiblePages={5}
             totalPages={totalPages}
             currentPage={Number(currentPage)}
             onPageChange={(page) => updateQuery("page", page.toString())}
-            
           />
         )}
       </div>

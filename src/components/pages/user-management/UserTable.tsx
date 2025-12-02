@@ -18,11 +18,11 @@ import { User } from "./UserManagementTable";
 
 interface UserTableProps {
   users: User[];
-  onReportView: (user: User, mode: "view" | "edit") => void;
+  // onReportView: (user: User, mode: "view" | "edit") => void;
   onViewProfile: (user: User) => void;
 }
 
-export function UserTable({ users, onReportView, onViewProfile }: UserTableProps) {
+export function UserTable({ users, onViewProfile }: UserTableProps) {
   const [updateUserStatus] = useUpdateUserStatusMutation();
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
@@ -71,7 +71,7 @@ export function UserTable({ users, onReportView, onViewProfile }: UserTableProps
               <TableHead className="text-white font-semibold">Location</TableHead>
               <TableHead className="text-white font-semibold">Phone Number</TableHead>
               <TableHead className="text-white font-semibold">Joining Date</TableHead>
-              <TableHead className="text-white font-semibold">Report</TableHead>
+              {/* <TableHead className="text-white font-semibold">Report</TableHead> */}
               <TableHead className="text-white font-semibold">Status</TableHead>
               <TableHead className="text-white font-semibold text-center">Action</TableHead>
             </TableRow>
@@ -109,14 +109,14 @@ export function UserTable({ users, onReportView, onViewProfile }: UserTableProps
                   <TableCell className="text-[#100F0E]">
                     {formatDate(user?.createdAt || "")}
                   </TableCell>
-                  <TableCell>
+                  {/* <TableCell>
                     <Button
                       className="h-7 px-3 bg-white/20 text-[#100F0E] border border-cyan-500 hover:bg-white/30"
                       onClick={() => onReportView(user, "view")}
                     >
                       View
                     </Button>
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell>
                     <span
                       className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${

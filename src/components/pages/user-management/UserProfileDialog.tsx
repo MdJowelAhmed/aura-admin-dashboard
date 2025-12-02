@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Mail, Phone, MapPin, Calendar, Shield, CheckCircle, XCircle } from "lucide-react";
 import Image from "next/image";
 import { User } from "./UserManagementTable";
+import { getImageUrl } from "@/components/share/imageUrl";
 
 interface UserProfileDialogProps {
   open: boolean;
@@ -38,8 +39,8 @@ export default function UserProfileDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange} >
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6">
         <DialogHeader>
           <DialogTitle>User Profile</DialogTitle>
         </DialogHeader>
@@ -48,7 +49,7 @@ export default function UserProfileDialog({
           {/* Profile Header */}
           <div className="flex items-center gap-4 pb-4 border-b">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={user.profile} alt={`${user.firstName} ${user.lastName}`} />
+              <AvatarImage src={getImageUrl(user.profile)} alt={`${user.firstName} ${user.lastName}`} />
               <AvatarFallback className="text-xl">{getInitials()}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
@@ -125,7 +126,7 @@ export default function UserProfileDialog({
                 {user.documentVerified.map((doc, idx) => (
                   <div key={idx} className="border rounded-lg p-2">
                     <Image
-                      src={doc}
+                      src={getImageUrl(doc)}
                       width={200}
                       height={100}
                       alt={`Document ${idx + 1}`}
