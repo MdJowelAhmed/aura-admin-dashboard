@@ -85,7 +85,7 @@ const promoCodeApi = api.injectEndpoints({
       { id: string; status: string }
     >({
       query: ({ id, status }) => ({
-        url: `/promo/toggle-status/${id}`,
+        url: `/promo/toggle/${id}`,
         method: "PATCH",
         body: { status },
       }),

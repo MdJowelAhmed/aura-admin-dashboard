@@ -22,6 +22,7 @@ import {
   type Promo,
 } from "@/lib/store/promoCode/promoCode";
 import { toast } from "sonner";
+import CustomPagination from "@/components/share/CustomPagination";
 
 type StatusFilter = "Status" | "Active" | "Inactive";
 
@@ -72,19 +73,25 @@ const mapFormToPayload = (values: PromoFormValues) => {
 };
 
 export function PromoCodeManagement() {
+
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Status");
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<PromoRow | null>(null);
 
-  const itemsPerPage = 10;
-
-  // API hooks
-  const { data: response, isLoading } = useGetAllPromoCodesQuery([
+  const itemsPerPage = 2;
+const queryParams=[
     { name: "page", value: String(currentPage) },
     { name: "limit", value: String(itemsPerPage) },
-  ]);
-
+  ]
+  if (statusFilter !== "Status") {
+    queryParams.push({ name: "status", value: statusFilter });
+  }
+ 
+  // API hooks
+  const { data: response, isLoading } = useGetAllPromoCodesQuery(queryParams);
+console.log(response)
   const [createPromo] = useCreatePromoCodeMutation();
   const [updatePromo] = useUpdatePromoCodeMutation();
   const [updateStatus] = useUpdatePromoCodeStatusMutation();
@@ -250,7 +257,7 @@ export function PromoCodeManagement() {
           />
 
           {/* Pagination */}
-          {totalPages > 1 && (
+          {/* {totalPages > 1 && (
             <div className="flex justify-center mt-6 gap-2">
               {Array.from({ length: totalPages }, (_, i) => (
                 <Button
@@ -266,6 +273,17 @@ export function PromoCodeManagement() {
                 </Button>
               ))}
             </div>
+          )} */}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <CustomPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              maxVisiblePages={5}
+              scrollToTop={true}
+            />
           )}
         </div>
       )}
