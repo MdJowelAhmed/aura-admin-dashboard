@@ -92,21 +92,21 @@ export function UserTable({ users, onReportView, onViewProfile }: UserTableProps
                     {index + 1}
                   </TableCell>
                   <TableCell className="text-[#100F0E] font-medium">
-                    {user.firstName} {user.lastName}
+                    {user?.firstName} {user?.lastName}
                   </TableCell>
                   <TableCell className="text-[#100F0E]">
-                    {user.email}
+                    {user?.email}
                   </TableCell>
                   <TableCell className="text-[#100F0E]">
-                    {user.location?.coordinates[0] === 0 && user.location?.coordinates[1] === 0
+                    {user?.location?.coordinates[0] === 0 && user?.location?.coordinates[1] === 0
                       ? "Not set"
-                      : `${user.location?.coordinates[1]}, ${user.location?.coordinates[0]}`}
+                      : `${user?.location?.coordinates[1]}, ${user?.location?.coordinates[0]}`}
                   </TableCell>
                   <TableCell className="text-[#100F0E]">
-                    {user.phoneNumber || "N/A"}
+                    {user?.phoneNumber || "N/A"}
                   </TableCell>
                   <TableCell className="text-[#100F0E]">
-                    {formatDate(user.createdAt)}
+                    {formatDate(user?.createdAt || "")}
                   </TableCell>
                   <TableCell>
                     <Button

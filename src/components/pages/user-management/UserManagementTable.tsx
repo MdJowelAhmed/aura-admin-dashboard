@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
 import { UserTable } from "./UserTable";
 import UserReportDialog from "@/components/modal/UserReportDialog";
-import UserProfileDialog from "@/components/modal/UserProfileDialog";
+// import UserProfileDialog from "@/components/modal/UserProfileDialog";
 import {
   Select,
   SelectContent,
@@ -18,6 +18,8 @@ import { SlidersHorizontal } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useGetAllUsersQuery } from "@/lib/store/userManage/userManagementApi";
 import CustomPagination from "@/components/share/CustomPagination";
+import UserProfileDialog from "./UserProfileDialog";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type StatusFilter = "Status" | "active" | "block";
 type UserTypeFilter = "All" | "ADMIN" | "MODERATOR" | "USER";
@@ -44,31 +46,32 @@ export interface User {
 
 export function UserManagement() {
   // const [perPage,setPerPage]=useState(5);
-  const itemsPerPage = 5;
-  const [currentPage, setCurrentPage] = useState(1);
-    const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("Status");
-  const [userTypeFilter, setUserTypeFilter] = useState<UserTypeFilter>("All");
+  const itemsPerPage = 4;
+  // const [currentPage, setCurrentPage] = useState(1);
+  //   const [search, setSearch] = useState("");
+  // const [statusFilter, setStatusFilter] = useState<StatusFilter>("Status");
+  // const [userTypeFilter, setUserTypeFilter] = useState<UserTypeFilter>("All");
+  const router = useRouter();
+const params = useSearchParams();
 
-  const queryParams=[
-    {name:"page",value:currentPage.toString()},
-    {name:"limit",value:itemsPerPage.toString()}
-  ]
-  if (search) {
-    queryParams.push({ name: "searchTerm", value: search });
-  }
-  if (statusFilter !== "Status") {
-    queryParams.push({ name: "status", value: statusFilter });
-  }
-  if (userTypeFilter !== "All") {
-    queryParams.push({ name: "role", value: userTypeFilter });
-  }
+const search = params.get("search") || "";
+const statusFilter = (params.get("status") as StatusFilter) || "Status";
+const userTypeFilter = (params.get("role") as UserTypeFilter) || "All";
+const currentPage = (params.get("page") || "1");
+
+
+ const queryParams = [
+  { name: "page", value: String(currentPage) },
+  { name: "limit", value: String(itemsPerPage) }
+];
+
+if (search) queryParams.push({ name: "searchTerm", value: search });
+if (statusFilter !== "Status") queryParams.push({ name: "status", value: statusFilter });
+if (userTypeFilter !== "All") queryParams.push({ name: "role", value: userTypeFilter });
+
   const { data, isLoading, error } = useGetAllUsersQuery(queryParams);
 
-  // Filters
 
-
-  // Pagination
 
 
   // Report modal
@@ -85,6 +88,15 @@ export function UserManagement() {
     setReportMode(mode);
     setReportOpen(true);
   };
+
+  const updateQuery = (key: string, value: string) => {
+  const query = new URLSearchParams(params.toString());
+  if (value) query.set(key, value);
+  else query.delete(key);
+
+  router.push(`?${query.toString()}`, { scroll: false });
+};
+
 
   const openProfile = (user: User) => {
     setProfileUser(user);
@@ -115,10 +127,12 @@ export function UserManagement() {
   }, [data, search, statusFilter, userTypeFilter]);
 
   // Pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentUsers = filtered.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+  // const indexOfLastItem = currentPage * itemsPerPage;
+  // const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  // const currentUsers = filtered.slice(indexOfFirstItem, indexOfLastItem);
+  const currentUsers = data?.data?.data || [];
+  const totalPages = data?.data?.pagination?.totalPage ;
+  console.log(totalPages)
 
   if (isLoading) {
     return (
@@ -145,7 +159,7 @@ export function UserManagement() {
           <Input
             placeholder="Search by name, email or phone"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => updateQuery("search", e.target.value)}
             className="bg-white/20 backdrop-blur-sm border border-white/50 text-white h-12"
           />
         </div>
@@ -155,7 +169,7 @@ export function UserManagement() {
           {/* User Type */}
           <Select
             value={userTypeFilter}
-            onValueChange={(v) => setUserTypeFilter(v as UserTypeFilter)}
+            onValueChange={(v) => updateQuery("role", v as UserTypeFilter)}
           >
             <SelectTrigger className="w-40 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
               <div className="flex items-center gap-2">
@@ -174,7 +188,7 @@ export function UserManagement() {
           {/* Status */}
           <Select
             value={statusFilter}
-            onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+            onValueChange={(v) => updateQuery("status", v as StatusFilter)}
           >
             <SelectTrigger className="w-32 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
               <div className="flex items-center gap-2">
@@ -197,29 +211,18 @@ export function UserManagement() {
           users={currentUsers}
           onReportView={openReport}
           onViewProfile={openProfile}
+          
         />
 
         {/* Pagination */}
         {totalPages > 1 && (
-          // <div className="flex justify-center mt-6 space-x-3">
-          //   {Array.from({ length: totalPages }, (_, i) => (
-          //     <Button
-          //       key={i}
-          //       onClick={() => setCurrentPage(i + 1)}
-          //       className={`${
-          //         currentPage === i + 1
-          //           ? "bg-cyan-500 text-white"
-          //           : "bg-white/20 text-white"
-          //       } rounded-lg px-4 py-2 hover:bg-cyan-400 transition-colors`}
-          //     >
-          //       {i + 1}
-          //     </Button>
-          //   ))}
-          // </div>
+       
           <CustomPagination
+            maxVisiblePages={5}
             totalPages={totalPages}
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
+            currentPage={Number(currentPage)}
+            onPageChange={(page) => updateQuery("page", page.toString())}
+            
           />
         )}
       </div>

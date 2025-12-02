@@ -67,7 +67,7 @@ const CustomPagination: React.FC<CustomPaginationProps> = ({
           disabled={currentPage <= 1}
           className="flex items-center justify-center w-8 h-8 p-0"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4 text-black" />
         </Button>
 
         {pageNumbers.map((num, i) =>
@@ -83,11 +83,12 @@ const CustomPagination: React.FC<CustomPaginationProps> = ({
               key={num}
               size="sm"
               onClick={() => goToPage(Number(num))}
-              variant={currentPage === Number(num) ? "default" : "outline"}
+              // variant remove or undefined
               className={cn(
                 "w-8 h-8 p-0 rounded-md",
-                currentPage === Number(num) &&
-                  "bg-primary text-white hover:bg-primary/90"
+                currentPage === Number(num)
+                  ? "bg-secondary text-black  hover:bg-secondary/80"
+                  : "bg-primary text-white hover:bg-primary/80 dark:bg-primary/80 dark:text-gray-300 dark:hover:bg-primary/60"
               )}
             >
               {num}
@@ -102,7 +103,7 @@ const CustomPagination: React.FC<CustomPaginationProps> = ({
           disabled={currentPage >= totalPages}
           className="flex items-center justify-center w-8 h-8 p-0"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4 text-black" />
         </Button>
       </div>
     </div>
