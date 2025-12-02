@@ -9,141 +9,182 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import { Table } from "./PromoTable";
 import type { PromoFormValues } from "./PromoForm";
 import PromoDialog from "@/components/modal/PromoDialog";
+import {
+  useGetAllPromoCodesQuery,
+  useCreatePromoCodeMutation,
+  useUpdatePromoCodeMutation,
+  useUpdatePromoCodeStatusMutation,
+  useDeletePromoCodeMutation,
+  type Promo,
+} from "@/lib/store/promoCode/promoCode";
+import { toast } from "sonner";
 
-// Helpers
-function isoToDisplay(iso: string) {
-  // Keep simple: show browser locale string
-  const d = new Date(iso);
-  return d.toLocaleString();
-}
-function displayToISO(s: string): string {
-  // naive parse "DD-MM-YYYY hh:mm AM/PM"
-  try {
-    const [datePart, timePart, ampm] = s.split(" ");
-    const [dd, mm, yyyy] = datePart.split("-").map(Number);
-    let [hh] = timePart.split(":").map(Number);
-    const minutes = timePart.split(":").map(Number)[1] || 0;
-    if ((ampm || "").toUpperCase() === "PM" && hh < 12) hh += 12;
-    if ((ampm || "").toUpperCase() === "AM" && hh === 12) hh = 0;
-    const d = new Date(yyyy, (mm || 1) - 1, dd || 1, hh || 0, minutes, 0);
-    return d.toISOString();
-  } catch {
-    return new Date().toISOString();
-  }
-}
+type StatusFilter = "Status" | "Active" | "Inactive";
 
-// ===== Sample promo code data (display) =====
-const initialDisplayData = [
-  {
-    id: 1,
-    promoCode: "AURA50",
-    type: "Percentage" as const,
-    usageLimit: 200,
-    startTime: "01-02-2025 10:00 AM",
-    endTime: "15-02-2025 11:59 PM",
-    status: "Active" as const,
-  },
-  {
-    id: 2,
-    promoCode: "CALL100",
-    type: "Flat" as const,
-    usageLimit: 50,
-    startTime: "05-02-2025 09:00 AM",
-    endTime: "20-02-2025 11:59 PM",
-    status: "Active" as const,
-  },
-  {
-    id: 3,
-    promoCode: "PREMIUM25",
-    type: "Percentage" as const,
-    usageLimit: 100,
-    startTime: "10-02-2025 12:00 PM",
-    endTime: "28-02-2025 06:00 PM",
-    status: "Inactive" as const,
-  },
-];
-
-export type PromoRow = {
-  id: number;
+type PromoRow = {
+  id: string;
   promoCode: string;
   type: "Percentage" | "Flat";
   usageLimit: number;
   startISO: string;
   endISO: string;
   status: "Active" | "Inactive";
-  imageUrl?: string;
+  value: number;
+  usedCount: number;
 };
 
-type StatusFilter = "Status" | "Active" | "Inactive"; // "Status" shows all
+// Format ISO date for display
+const formatDateTime = (iso: string): string => {
+  return new Date(iso).toLocaleString();
+};
+
+// Map API response to table row format
+const mapPromoToRow = (promo: Promo): PromoRow => ({
+  id: promo._id,
+  promoCode: promo.promoCode,
+  type: promo.discountType.includes("Percentage") ? "Percentage" : "Flat",
+  usageLimit: promo.usageLimit,
+  startISO: promo.startDate,
+  endISO: promo.endDate,
+  status: promo.isActive ? "Active" : "Inactive",
+  value: promo.value,
+  usedCount: promo.usedCount,
+});
+
+// Map form values to API payload
+const mapFormToPayload = (values: PromoFormValues) => {
+  const numericValue = parseFloat(values.value.replace(/[%৳]/g, "").trim());
+  
+  return {
+    promoCode: values.promoCode.trim(),
+    discountType: values.discountType === "Percentage" 
+      ? "Percentage Discount" 
+      : "Flat Discount",
+    value: numericValue,
+    usageLimit: Number(values.usageLimit),
+    startDate: new Date(values.startDateTime).toISOString(),
+    endDate: new Date(values.endDateTime).toISOString(),
+  };
+};
 
 export function PromoCodeManagement() {
-  // Seed rows (convert display times to ISO for ease of editing)
-  const seeded = useMemo<PromoRow[]>(
-    () =>
-      initialDisplayData.map((r) => ({
-        id: r.id,
-        promoCode: r.promoCode,
-        type: r.type,
-        usageLimit: r.usageLimit,
-        startISO: displayToISO(r.startTime),
-        endISO: displayToISO(r.endTime),
-        status: r.status,
-        imageUrl: undefined,
-      })),
-    []
-  );
-
-  const [promos, setPromos] = useState<PromoRow[]>(seeded);
-
-  // Status filter (default "Status" => show all)
+  const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Status");
-
-  // Toggle visual state
-  const [toggleStates, setToggleStates] = useState<Record<number, boolean>>(
-    seeded.reduce((acc, p) => {
-      acc[p.id] = p.status === "Active";
-      return acc;
-    }, {} as Record<number, boolean>)
-  );
-
-  // EDIT modal state
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<PromoRow | null>(null);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const itemsPerPage = 10;
 
-  const handleToggle = (id: number) => {
-    setToggleStates((prev) => {
-      const next = !prev[id];
-      setPromos((rows) =>
-        rows.map((r) =>
-          r.id === id ? { ...r, status: next ? "Active" : "Inactive" } : r
-        )
-      );
-      return { ...prev, [id]: next };
-    });
+  // API hooks
+  const { data: response, isLoading } = useGetAllPromoCodesQuery([
+    { name: "page", value: String(currentPage) },
+    { name: "limit", value: String(itemsPerPage) },
+  ]);
+
+  const [createPromo] = useCreatePromoCodeMutation();
+  const [updatePromo] = useUpdatePromoCodeMutation();
+  const [updateStatus] = useUpdatePromoCodeStatusMutation();
+  const [deletePromo] = useDeletePromoCodeMutation();
+
+  // Transform API data
+  const promos = useMemo(() => {
+    return response?.data?.map(mapPromoToRow) || [];
+  }, [response?.data]);
+
+  // Filter by status
+  const filteredPromos = useMemo(() => {
+    if (statusFilter === "Status") return promos;
+    return promos.filter((p) => p.status === statusFilter);
+  }, [promos, statusFilter]);
+
+  // Toggle states for UI
+  const toggleStates = useMemo(() => {
+    return promos.reduce((acc, promo) => {
+      acc[promo.id] = promo.status === "Active";
+      return acc;
+    }, {} as Record<string, boolean>);
+  }, [promos]);
+
+  const totalPages = response?.pagination?.totalPage || 1;
+
+  // Handlers
+  const handleCreate = async (values: PromoFormValues) => {
+    try {
+      const payload = mapFormToPayload(values);
+      await createPromo(payload as any).unwrap();
+      toast.success("Promo code created successfully!");
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to create promo code");
+      console.error("Create error:", error);
+    }
   };
 
-  // Apply filter BEFORE pagination
-  const filtered = promos.filter((p) =>
-    statusFilter === "Status" ? true : p.status === statusFilter
-  );
+  const handleUpdate = async (values: PromoFormValues) => {
+    if (!editing) return;
 
-  // Derived pagination on filtered set
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentPromos = filtered.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+    try {
+      const payload = { _id: editing.id, ...mapFormToPayload(values) };
+      await updatePromo(payload as any).unwrap();
+      toast.success("Promo code updated successfully!");
+      setEditOpen(false);
+      setEditing(null);
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to update promo code");
+      console.error("Update error:", error);
+    }
+  };
 
-  // Pagination is handled directly in the UI components
+  const handleToggle = async (id: string) => {
+    try {
+      const promo = promos.find((p) => p.id === id);
+      if (!promo) return;
 
-  // ===== Headers (unchanged design) =====
+      const newStatus = promo.status === "Active" ? "inactive" : "active";
+      await updateStatus({ id, status: newStatus }).unwrap();
+      toast.success("Status updated successfully!");
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to update status");
+      console.error("Toggle error:", error);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this promo code?")) return;
+
+    try {
+      await deletePromo(id).unwrap();
+      toast.success("Promo code deleted successfully!");
+      if (editing?.id === id) {
+        setEditOpen(false);
+        setEditing(null);
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to delete promo code");
+      console.error("Delete error:", error);
+    }
+  };
+
+  const handleEdit = (row: any) => {
+    setEditing(row as PromoRow);
+    setEditOpen(true);
+  };
+
+  // Prepare edit form initial values
+  const editInitialValues: Partial<PromoFormValues> | undefined = editing
+    ? {
+        promoCode: editing.promoCode,
+        discountType: editing.type,
+        value: String(editing.value),
+        usageLimit: String(editing.usageLimit),
+        startDateTime: editing.startISO.slice(0, 16),
+        endDateTime: editing.endISO.slice(0, 16),
+      }
+    : undefined;
+
   const headerNames = [
     "SL",
     "Promo Code",
@@ -155,165 +196,86 @@ export function PromoCodeManagement() {
     "Action",
   ];
 
-  // ===== Add Promo submit =====
-  const handleCreatePromo = async (values: PromoFormValues) => {
-    const nextId = Math.max(0, ...promos.map((p) => p.id)) + 1;
-
-    const imageUrl = values.thumbnail
-      ? URL.createObjectURL(values.thumbnail)
-      : undefined;
-
-    const newRow: PromoRow = {
-      id: nextId,
-      promoCode: values.promoCode,
-      type: values.discountType, // "Percentage" | "Flat"
-      usageLimit: Number(values.usageLimit),
-      startISO: values.startDateTime,
-      endISO: values.endDateTime,
-      status: "Active", // default
-      imageUrl,
-    };
-
-    setPromos((prev) => [newRow, ...prev]);
-    setToggleStates((prev) => ({ ...prev, [nextId]: true }));
-  };
-
-  // Edit open
-  const handleEditClick = (row: PromoRow) => {
-    setEditing(row);
-    setEditOpen(true);
-  };
-
-  // ===== Edit submit =====
-  const handleUpdatePromo = async (values: PromoFormValues) => {
-    if (!editing) return;
-
-    const newImage = values.thumbnail
-      ? URL.createObjectURL(values.thumbnail)
-      : editing.imageUrl;
-
-    setPromos((rows) =>
-      rows.map((r) =>
-        r.id === editing.id
-          ? {
-              ...r,
-              promoCode: values.promoCode,
-              type: values.discountType,
-              usageLimit: Number(values.usageLimit),
-              startISO: values.startDateTime,
-              endISO: values.endDateTime,
-              imageUrl: newImage,
-            }
-          : r
-      )
-    );
-
-    setEditOpen(false);
-    setEditing(null);
-  };
-
-  // ===== Delete =====
-  const handleDelete = (id: number) => {
-    setPromos((rows) => rows.filter((r) => r.id !== id));
-    setToggleStates((prev) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [id]: removed, ...rest } = prev;
-      return rest;
-    });
-    if (editing?.id === id) {
-      setEditOpen(false);
-      setEditing(null);
-    }
-  };
-
-  // ===== Prefill for edit dialog =====
-  const editInitialValues: Partial<PromoFormValues> | undefined = editing
-    ? {
-        promoCode: editing.promoCode,
-        discountType: editing.type,
-        value: "", // you can map back a default if needed
-        usageLimit: String(editing.usageLimit),
-        startDateTime: editing.startISO.slice(0, 16), // "YYYY-MM-DDTHH:MM"
-        endDateTime: editing.endISO.slice(0, 16),
-      }
-    : undefined;
-
   return (
-    <div className="w-full mx-auto space-y-2 my-5">
+    <div className="w-full mx-auto space-y-4 my-5">
       {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-end">
-        <div className="flex gap-3">
-          {/* Status Filter (Status shows all) */}
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => setStatusFilter(v as StatusFilter)}
-          >
-            <SelectTrigger className="w-32 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4 text-white" />
-                <SelectValue placeholder="Status" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Status">Status</SelectItem>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex justify-end gap-3">
+        {/* Status Filter */}
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+        >
+          <SelectTrigger className="w-32 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4" />
+              <SelectValue placeholder="Status" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Status">All</SelectItem>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
 
-          {/* Create New Promo */}
-          <PromoDialog
-            trigger={
-              <Button className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 px-6 hover:bg-white/30 transition-all duration-200">
-                Create New Promo
-              </Button>
-            }
-            onSubmit={handleCreatePromo}
-            title="Create Promo"
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col justify-end items-end">
-        {/* Table */}
-        <Table
-          promos={currentPromos.map((p) => ({
-            ...p,
-            startTime: isoToDisplay(p.startISO),
-            endTime: isoToDisplay(p.endISO),
-          }))}
-          toggleStates={toggleStates}
-          handleToggle={handleToggle}
-          headerNames={headerNames}
-          onEdit={(row) => handleEditClick(row as unknown as PromoRow)}
-          onDelete={handleDelete}
-        />
-
-        {/* Pagination */}
-        <div className="flex justify-center mt-6 space-x-3">
-          {Array.from({ length: totalPages }, (_, index) => (
-            <Button
-              key={index}
-              onClick={() => setCurrentPage(index + 1)}
-              className={`${
-                currentPage === index + 1
-                  ? "bg-cyan-500 text-white"
-                  : "bg-white/20 text-white"
-              } rounded-lg px-4 py-2 hover:bg-cyan-400 transition-colors`}
-            >
-              {index + 1}
+        {/* Create Button */}
+        <PromoDialog
+          trigger={
+            <Button className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 px-6 hover:bg-white/30">
+              Create New Promo
             </Button>
-          ))}
-        </div>
+          }
+          onSubmit={handleCreate}
+          title="Create Promo"
+        />
       </div>
 
-      {/* EDIT (controlled) */}
+      {/* Table */}
+      {isLoading ? (
+        <div className="text-center text-white py-8">Loading...</div>
+      ) : (
+        <div className="flex flex-col items-end">
+          <Table
+            promos={filteredPromos.map((p) => ({
+              ...p,
+              id: p.id as any,
+              startTime: formatDateTime(p.startISO),
+              endTime: formatDateTime(p.endISO),
+            }))}
+            toggleStates={toggleStates}
+            handleToggle={handleToggle}
+            headerNames={headerNames}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-6 gap-2">
+              {Array.from({ length: totalPages }, (_, i) => (
+                <Button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`${
+                    currentPage === i + 1
+                      ? "bg-cyan-500 text-white"
+                      : "bg-white/20 text-white"
+                  } rounded-lg px-4 py-2 hover:bg-cyan-400`}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit Dialog */}
       <PromoDialog
         open={editOpen}
         onOpenChange={setEditOpen}
         initialValues={editInitialValues}
-        initialImageUrl={editing?.imageUrl}
-        onSubmit={handleUpdatePromo}
+        onSubmit={handleUpdate}
         title="Edit Promo"
       />
     </div>

@@ -19,8 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ImagePlus } from "lucide-react";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export type PromoFormValues = {
@@ -30,15 +28,13 @@ export type PromoFormValues = {
   usageLimit: string;
   startDateTime: string;
   endDateTime: string;
-  thumbnail?: File;
 };
 
-const PERCENT_VALUES = ["5%", "10%", "15%", "20%", "25%", "30%", "40%", "50%"];
+const PERCENT_VALUES = ["5", "10", "15", "20", "25", "30", "40", "50"];
 const FLAT_VALUES = ["5", "10", "25", "50", "100", "200", "500"];
 
 type Props = {
   initialValues?: Partial<PromoFormValues>;
-  initialImageUrl?: string;
   onSubmit: (values: PromoFormValues) => Promise<void> | void;
   onCancel?: () => void;
   afterSubmit?: () => void;
@@ -54,7 +50,6 @@ function genPromoCode(len = 8) {
 
 export function PromoForm({
   initialValues,
-  initialImageUrl,
   onSubmit,
   onCancel,
   afterSubmit,
@@ -67,31 +62,43 @@ export function PromoForm({
       usageLimit: initialValues?.usageLimit ?? "",
       startDateTime: initialValues?.startDateTime ?? "",
       endDateTime: initialValues?.endDateTime ?? "",
-      thumbnail: undefined,
     },
   });
 
   const watchType = form.watch("discountType");
-  const [preview, setPreview] = React.useState<string | null>(
-    initialImageUrl ?? null
-  );
 
-  const handleImageChange = (file?: File) => {
-    form.setValue("thumbnail", file as File | undefined, { shouldValidate: true });
-    if (file) setPreview(URL.createObjectURL(file));
-    else setPreview(initialImageUrl ?? null);
-  };
+  // Reset value when discount type changes
+  React.useEffect(() => {
+    form.setValue("value", "", { shouldValidate: false });
+  }, [watchType, form]);
 
   const submit = async (values: PromoFormValues) => {
+    // Validate dates
+    const start = new Date(values.startDateTime);
+    const end = new Date(values.endDateTime);
+    
+    if (end <= start) {
+      form.setError("endDateTime", {
+        message: "End date must be after start date",
+      });
+      return;
+    }
+
+    // Validate value is selected
+    if (!values.value || values.value.trim() === "") {
+      form.setError("value", {
+        message: "Please select a discount value",
+      });
+      return;
+    }
+
     await onSubmit(values);
     form.reset();
-    setPreview(null);
     afterSubmit?.();
   };
 
   const handleCancel = () => {
     form.reset();
-    setPreview(null);
     onCancel?.();
   };
 
@@ -108,6 +115,7 @@ export function PromoForm({
         <FormField
           control={form.control}
           name="promoCode"
+          rules={{ required: "Promo code is required" }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Promo Code</FormLabel>
@@ -126,6 +134,7 @@ export function PromoForm({
                   Generate
                 </Button>
               </div>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -148,6 +157,7 @@ export function PromoForm({
                   <SelectItem value="Flat">Flat</SelectItem>
                 </SelectContent>
               </Select>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -156,9 +166,12 @@ export function PromoForm({
         <FormField
           control={form.control}
           name="value"
+          rules={{ required: "Please select a value" }}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Value</FormLabel>
+              <FormLabel>
+                Value {watchType === "Percentage" ? "(Percentage)" : "(Amount)"}
+              </FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -168,11 +181,12 @@ export function PromoForm({
                 <SelectContent>
                   {valueOptions.map((v) => (
                     <SelectItem key={v} value={v}>
-                      {watchType === "Flat" ? `${v}` : v}
+                      {watchType === "Percentage" ? `${v}%` : `৳${v}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -181,12 +195,22 @@ export function PromoForm({
         <FormField
           control={form.control}
           name="usageLimit"
+          rules={{ 
+            required: "Usage limit is required",
+            min: { value: 1, message: "Must be at least 1" }
+          }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Usage Limit</FormLabel>
               <FormControl>
-                <Input type="number" min={1} placeholder="Enter usage limit" {...field} />
+                <Input 
+                  type="number" 
+                  min={1} 
+                  placeholder="Enter usage limit" 
+                  {...field} 
+                />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -195,12 +219,14 @@ export function PromoForm({
         <FormField
           control={form.control}
           name="startDateTime"
+          rules={{ required: "Start date is required" }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Start Date & Time</FormLabel>
               <FormControl>
                 <Input type="datetime-local" {...field} />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -209,55 +235,14 @@ export function PromoForm({
         <FormField
           control={form.control}
           name="endDateTime"
+          rules={{ required: "End date is required" }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>End Date & Time</FormLabel>
               <FormControl>
                 <Input type="datetime-local" {...field} />
               </FormControl>
-            </FormItem>
-          )}
-        />
-
-        {/* Upload Thumbnail */}
-        <FormField
-          control={form.control}
-          name="thumbnail"
-          render={() => (
-            <FormItem>
-              <FormLabel>Upload Event Thumbnail</FormLabel>
-              <FormControl>
-                <div className="rounded-xl border border-dashed border-[#D5D8E1] p-6 text-center">
-                  <label
-                    htmlFor="promo-thumbnail"
-                    className="flex flex-col items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {preview ? (
-                      <Image
-                        src={preview}
-                        alt="Preview"
-                        width={112}
-                        height={112}
-                        className="rounded-lg object-cover"
-                      />
-                    ) : (
-                      <>
-                        <ImagePlus className="h-8 w-8 opacity-70" />
-                        <span className="text-sm text-gray-600">
-                          Upload photo (Max: 2MB, .jpg, .jpeg, .png)
-                        </span>
-                      </>
-                    )}
-                  </label>
-                  <input
-                    id="promo-thumbnail"
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg"
-                    className="hidden"
-                    onChange={(e) => handleImageChange(e.target.files?.[0])}
-                  />
-                </div>
-              </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
