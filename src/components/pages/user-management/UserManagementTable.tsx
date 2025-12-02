@@ -1,10 +1,9 @@
-// UserManagement.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
-import { Table, UserRow } from "./UserTable";
+import { UserTable } from "./UserTable";
 import UserReportDialog from "@/components/modal/UserReportDialog";
 import UserProfileDialog from "@/components/modal/UserProfileDialog";
 import {
@@ -15,161 +14,127 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SlidersHorizontal } from "lucide-react";
+// import { useGetAllUsersQuery } from "@/redux/api/userManagementApi";
+import { Loader2 } from "lucide-react";
+import { useGetAllUsersQuery } from "@/lib/store/userManage/userManagementApi";
+import CustomPagination from "@/components/share/CustomPagination";
 
-// Extend the table's UserRow locally to carry optional avatar/passport
-type ExtendedUserRow = UserRow & {
-  avatarUrl?: string;
-  passportPhotoUrl?: string;
-};
+type StatusFilter = "Status" | "active" | "block";
+type UserTypeFilter = "All" | "ADMIN" | "MODERATOR" | "USER";
 
-type StatusFilter = "Status" | "Active" | "Inactive";
-type UserTypeFilter = "All" | "Admin" | "Moderator" | "User";
-
-// Sample data matching new headers (+ userType used for filter) + passport photos
-const usersData: ExtendedUserRow[] = [
-  {
-    id: 1,
-    userName: "Mijanur Rahman",
-    email: "mijan.connect@gmail.com",
-    location: "Dhaka, BD",
-    phoneNumber: "+8801711000000",
-    joiningDate: "01-02-2025",
-    report: "View",
-    status: "Active",
-    userType: "Admin",
-    avatarUrl: "/avatars/mijan.png", // optional local avatar (static file)
-    passportPhotoUrl: "/passports/mijan-passport.jpg", // <-- shown in profile modal
-  },
-  {
-    id: 2,
-    userName: "Arif Hossain",
-    email: "arif@example.com",
-    location: "Chattogram, BD",
-    phoneNumber: "+8801811000000",
-    joiningDate: "05-02-2025",
-    report: "View",
-    status: "Active",
-    userType: "User",
-    avatarUrl: "/avatars/arif.png",
-    passportPhotoUrl: "/passports/arif-passport.jpg",
-  },
-  {
-    id: 3,
-    userName: "Nusrat Jahan",
-    email: "nusrat@example.com",
-    location: "Sylhet, BD",
-    phoneNumber: "+8801911000000",
-    joiningDate: "10-02-2025",
-    report: "View",
-    status: "Inactive",
-    userType: "Moderator",
-    avatarUrl: "/avatars/nusrat.png",
-    passportPhotoUrl: "/passports/nusrat-passport.jpg",
-  },
-];
+export interface User {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string | null;
+  role: string;
+  status: "active" | "block";
+  profile: string;
+  documentVerified: string[] | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  verified: boolean;
+  createdAt: string;
+  location: {
+    type: string;
+    coordinates: number[];
+  };
+}
 
 export function UserManagement() {
-  // Table state (widened to ExtendedUserRow so we keep extra fields in TS too)
-  const [rows, setRows] = useState<ExtendedUserRow[]>(usersData);
-
-  const [toggleStates, setToggleStates] = useState<Record<number, boolean>>(
-    usersData.reduce((acc, r) => {
-      acc[r.id] = r.status === "Active";
-      return acc;
-    }, {} as Record<number, boolean>)
-  );
-
-  // Filters
-  const [search, setSearch] = useState("");
+  // const [perPage,setPerPage]=useState(5);
+  const itemsPerPage = 5;
+  const [currentPage, setCurrentPage] = useState(1);
+    const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Status");
   const [userTypeFilter, setUserTypeFilter] = useState<UserTypeFilter>("All");
 
+  const queryParams=[
+    {name:"page",value:currentPage.toString()},
+    {name:"limit",value:itemsPerPage.toString()}
+  ]
+  if (search) {
+    queryParams.push({ name: "searchTerm", value: search });
+  }
+  if (statusFilter !== "Status") {
+    queryParams.push({ name: "status", value: statusFilter });
+  }
+  if (userTypeFilter !== "All") {
+    queryParams.push({ name: "role", value: userTypeFilter });
+  }
+  const { data, isLoading, error } = useGetAllUsersQuery(queryParams);
+
+  // Filters
+
+
   // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
 
-  const headerNames = [
-    "SL",
-    "User Name",
-    "Email",
-    "Location",
-    "Phone Number",
-    "Joining Date",
-    "Report",
-    "Status",
-    "Action",
-  ];
-
-  // Toggle Active/Inactive
-  const handleToggle = (id: number) =>
-    setToggleStates((p) => {
-      const next = !p[id];
-      setRows((rs) =>
-        rs.map((r) =>
-          r.id === id ? { ...r, status: next ? "Active" : "Inactive" } : r
-        )
-      );
-      return { ...p, [id]: next };
-    });
-
-  // Delete
-  const handleDelete = (id: number) => {
-    setRows((rs) => rs.filter((r) => r.id !== id));
-    setToggleStates((prev) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [id]: removed, ...rest } = prev;
-      return rest;
-    });
-  };
-
-  // Derived filtered rows (search + filters)
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
-      const matchesSearch =
-        !q ||
-        r.userName.toLowerCase().includes(q) ||
-        r.email.toLowerCase().includes(q) ||
-        r.location.toLowerCase().includes(q) ||
-        r.phoneNumber.toLowerCase().includes(q);
-      const matchesStatus =
-        statusFilter === "Status" ? true : r.status === statusFilter;
-      const matchesType =
-        userTypeFilter === "All"
-          ? true
-          : (r.userType ?? "User") === userTypeFilter;
-      return matchesSearch && matchesStatus && matchesType;
-    });
-  }, [rows, search, statusFilter, userTypeFilter]);
-
-  // Pagination on filtered
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentRows = filtered.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
 
   // Report modal
   const [reportOpen, setReportOpen] = useState(false);
   const [reportMode, setReportMode] = useState<"view" | "edit">("view");
-  const [reportUser, setReportUser] = useState<UserRow | null>(null);
+  const [reportUser, setReportUser] = useState<User | null>(null);
 
-  const openReport = (row: UserRow, mode: "view" | "edit") => {
-    setReportUser(row);
+  // Profile modal
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+
+  const openReport = (user: User, mode: "view" | "edit") => {
+    setReportUser(user);
     setReportMode(mode);
     setReportOpen(true);
   };
 
-  // Profile modal (store full extended row to carry passport/avatars)
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [profileUser, setProfileUser] = useState<ExtendedUserRow | null>(null);
-
-  const openProfile = (row: UserRow) => {
-    // row comes from Table (typed as UserRow) but it actually carries extra fields.
-    // Find the full row from our state to ensure we include passport/avatars:
-    const full = rows.find((r) => r.id === row.id) || (row as ExtendedUserRow);
-    setProfileUser(full);
+  const openProfile = (user: User) => {
+    setProfileUser(user);
     setProfileOpen(true);
   };
+
+  // Derived filtered rows
+  const filtered = useMemo(() => {
+    if (!data?.data?.data) return [];
+
+    const q = search.trim().toLowerCase();
+    return data.data.data.filter((user) => {
+      const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+      const matchesSearch =
+        !q ||
+        fullName.includes(q) ||
+        user.email.toLowerCase().includes(q) ||
+        (user.phoneNumber && user.phoneNumber.toLowerCase().includes(q));
+
+      const matchesStatus =
+        statusFilter === "Status" ? true : user.status === statusFilter;
+
+      const matchesType =
+        userTypeFilter === "All" ? true : user.role === userTypeFilter;
+
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [data, search, statusFilter, userTypeFilter]);
+
+  // Pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentUsers = filtered.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-red-500">Failed to load users. Please try again.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full mx-auto space-y-2 my-5">
@@ -178,7 +143,7 @@ export function UserManagement() {
         {/* Left: Search */}
         <div className="w-full sm:w-100">
           <Input
-            placeholder="Search here"
+            placeholder="Search by name, email or phone"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-white/20 backdrop-blur-sm border border-white/50 text-white h-12"
@@ -199,10 +164,10 @@ export function UserManagement() {
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">User Type</SelectItem>
-              <SelectItem value="Admin">Admin</SelectItem>
-              <SelectItem value="Moderator">Moderator</SelectItem>
-              <SelectItem value="User">User</SelectItem>
+              <SelectItem value="All">All Roles</SelectItem>
+              <SelectItem value="ADMIN">Admin</SelectItem>
+              <SelectItem value="MODERATOR">Moderator</SelectItem>
+              <SelectItem value="USER">User</SelectItem>
             </SelectContent>
           </Select>
 
@@ -218,9 +183,9 @@ export function UserManagement() {
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Status">Status</SelectItem>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Inactive">Inactive</SelectItem>
+              <SelectItem value="Status">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="block">Blocked</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -228,32 +193,35 @@ export function UserManagement() {
 
       {/* Table */}
       <div className="flex flex-col justify-end items-end">
-        <Table
-          rows={currentRows}
-          toggleStates={toggleStates}
-          handleToggle={handleToggle}
-          headerNames={headerNames}
+        <UserTable
+          users={currentUsers}
           onReportView={openReport}
           onViewProfile={openProfile}
-          onDelete={handleDelete}
         />
 
         {/* Pagination */}
-        <div className="flex justify-center mt-6 space-x-3">
-          {Array.from({ length: totalPages }, (_, i) => (
-            <Button
-              key={i}
-              onClick={() => setCurrentPage(i + 1)}
-              className={`${
-                currentPage === i + 1
-                  ? "bg-cyan-500 text-white"
-                  : "bg-white/20 text-white"
-              } rounded-lg px-4 py-2 hover:bg-cyan-400 transition-colors`}
-            >
-              {i + 1}
-            </Button>
-          ))}
-        </div>
+        {totalPages > 1 && (
+          // <div className="flex justify-center mt-6 space-x-3">
+          //   {Array.from({ length: totalPages }, (_, i) => (
+          //     <Button
+          //       key={i}
+          //       onClick={() => setCurrentPage(i + 1)}
+          //       className={`${
+          //         currentPage === i + 1
+          //           ? "bg-cyan-500 text-white"
+          //           : "bg-white/20 text-white"
+          //       } rounded-lg px-4 py-2 hover:bg-cyan-400 transition-colors`}
+          //     >
+          //       {i + 1}
+          //     </Button>
+          //   ))}
+          // </div>
+          <CustomPagination
+            totalPages={totalPages}
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+          />
+        )}
       </div>
 
       {/* Modals */}
@@ -263,8 +231,8 @@ export function UserManagement() {
         mode={reportMode}
         user={
           reportUser && {
-            id: reportUser.id,
-            userName: reportUser.userName,
+            id: reportUser._id,
+            userName: `${reportUser.firstName} ${reportUser.lastName}`,
             email: reportUser.email,
           }
         }

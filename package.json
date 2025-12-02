@@ -19,6 +19,7 @@
     "@reduxjs/toolkit": "^2.9.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "draft-js": "^0.11.7",
     "draftjs-to-html": "^0.9.1",
     "install": "^0.13.0",
