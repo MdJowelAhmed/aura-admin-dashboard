@@ -56,7 +56,7 @@ export function Table({
               className="bg-white/90 backdrop-blur-sm rounded-lg border border-white/20 p-2 hover:bg-white/95 transition-all duration-200"
             >
               <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_80px_160px] gap-4 items-center text-sm">
-                <div className="text-[#100F0E] font-medium ml-3">{p.id}</div>
+                <div className="text-[#100F0E] font-medium ml-3"></div>
                 <div className="text-[#100F0E]">{p.promoCode}</div>
                 <div className="text-[#100F0E]">{p.type}</div>
                 <div className="text-[#100F0E]">{p.usageLimit}</div>

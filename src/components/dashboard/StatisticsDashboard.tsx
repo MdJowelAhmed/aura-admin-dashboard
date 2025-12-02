@@ -20,6 +20,7 @@ const StatisticsCard = ({
   </div>
 );
 
+
 const StatisticsDashboard = () => {
   // These variables will be used in future implementations
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
