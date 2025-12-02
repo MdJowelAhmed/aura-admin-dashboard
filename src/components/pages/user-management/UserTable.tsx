@@ -9,11 +9,12 @@ import {
 } from "@/components/ui/table";
 import { Eye, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { User } from "./UserManagement";
+// import { User } from "./UserManagement";
 // import { useUpdateUserStatusMutation } from "@/redux/api/userManagementApi";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useUpdateUserStatusMutation } from "@/lib/store/userManage/userManagementApi";
+import { User } from "./UserManagementTable";
 
 interface UserTableProps {
   users: User[];
@@ -45,7 +46,7 @@ export function UserTable({ users, onReportView, onViewProfile }: UserTableProps
     }
   };
 
-  const handleDelete = (user: User) => {
+  const handleDelete = () => {
     // Implement delete functionality
     toast.info("Delete functionality to be implemented");
   };
@@ -157,7 +158,7 @@ export function UserTable({ users, onReportView, onViewProfile }: UserTableProps
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDelete(user)}
+                        onClick={handleDelete}
                         className="w-8 h-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
                         title="Delete"
                       >

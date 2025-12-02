@@ -4,12 +4,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { User } from "@/app/(Dashboard)/(users)/user-management/UserManagement";
+// import { User } from "@/app/(Dashboard)/(users)/user-management/UserManagement";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Mail, Phone, MapPin, Calendar, Shield, CheckCircle, XCircle } from "lucide-react";
 import Image from "next/image";
+import { User } from "./UserManagementTable";
 
 interface UserProfileDialogProps {
   open: boolean;

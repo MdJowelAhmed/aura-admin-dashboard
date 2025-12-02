@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+
 import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
 import { UserTable } from "./UserTable";
@@ -103,33 +103,8 @@ if (userTypeFilter !== "All") queryParams.push({ name: "role", value: userTypeFi
     setProfileOpen(true);
   };
 
-  // Derived filtered rows
-  const filtered = useMemo(() => {
-    if (!data?.data?.data) return [];
 
-    const q = search.trim().toLowerCase();
-    return data.data.data.filter((user) => {
-      const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
-      const matchesSearch =
-        !q ||
-        fullName.includes(q) ||
-        user.email.toLowerCase().includes(q) ||
-        (user.phoneNumber && user.phoneNumber.toLowerCase().includes(q));
 
-      const matchesStatus =
-        statusFilter === "Status" ? true : user.status === statusFilter;
-
-      const matchesType =
-        userTypeFilter === "All" ? true : user.role === userTypeFilter;
-
-      return matchesSearch && matchesStatus && matchesType;
-    });
-  }, [data, search, statusFilter, userTypeFilter]);
-
-  // Pagination
-  // const indexOfLastItem = currentPage * itemsPerPage;
-  // const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  // const currentUsers = filtered.slice(indexOfFirstItem, indexOfLastItem);
   const currentUsers = data?.data?.data || [];
   const totalPages = data?.data?.pagination?.totalPage ;
   console.log(totalPages)
@@ -228,7 +203,7 @@ if (userTypeFilter !== "All") queryParams.push({ name: "role", value: userTypeFi
       </div>
 
       {/* Modals */}
-      <UserReportDialog
+      {/* <UserReportDialog
         open={reportOpen}
         onOpenChange={setReportOpen}
         mode={reportMode}
@@ -239,7 +214,7 @@ if (userTypeFilter !== "All") queryParams.push({ name: "role", value: userTypeFi
             email: reportUser.email,
           }
         }
-      />
+      /> */}
       <UserProfileDialog
         open={profileOpen}
         onOpenChange={setProfileOpen}
