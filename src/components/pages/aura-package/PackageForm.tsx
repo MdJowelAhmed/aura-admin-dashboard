@@ -22,11 +22,12 @@ import {
 
 export type PackageFormValues = {
   packageName: string;
-  duration: "7 days" | "30 days" | "90 days";
+  duration: "1 day" | "1 week" | "1 month" | "3 months" | "6 months" | "1 year";
+  description: string;
   price: string;
 };
 
-const DURATION_OPTIONS = ["7 days", "30 days", "90 days"] as const;
+const DURATION_OPTIONS = ["1 day", "1 week", "1 month", "3 months", "6 months", "1 year"] as const;
 
 type Props = {
   initialValues?: Partial<PackageFormValues>;
@@ -47,6 +48,7 @@ export default function PackageForm({
     defaultValues: {
       packageName: initialValues?.packageName ?? "",
       duration: initialValues?.duration ?? undefined,
+      description: initialValues?.description ?? "",
       price: initialValues?.price ?? "",
     },
   });
@@ -75,6 +77,24 @@ export default function PackageForm({
               <FormControl>
                 <Input
                   placeholder="Enter package name"
+                  {...field}
+                  required
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {/* Description */}
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Enter package description"
                   {...field}
                   required
                 />

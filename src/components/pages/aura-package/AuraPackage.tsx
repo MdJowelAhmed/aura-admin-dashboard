@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Table, PackageRow } from "./PackageTable";
 import type { PackageFormValues } from "./PackageForm";
 import {
@@ -13,214 +14,225 @@ import {
 } from "@/components/ui/select";
 import { SlidersHorizontal } from "lucide-react";
 import PackageDialog from "@/components/modal/PackageDialog";
+import {
+  useGetAllShopPackagesQuery,
+  useCreateShopPackageMutation,
+  useUpdateShopPackageMutation,
+  useUpdateShopPackageStatusMutation,
+  useDeleteShopPackageMutation,
+} from "@/lib/store/auraShopPackage/auraShopPackageApi";
 
-// Helpers
-function formatDate(d: Date): string {
+type StatusFilter = "Status" | "Active" | "Inactive";
+
+// Helper to format API date to DD-MM-YYYY
+function formatDate(isoDate: string): string {
+  const d = new Date(isoDate);
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yyyy = d.getFullYear();
   return `${dd}-${mm}-${yyyy}`;
 }
 
-type StatusFilter = "Status" | "Active" | "Inactive";
-
-// Sample data to match the new columns
-const packageData: PackageRow[] = [
-  {
-    id: 1,
-    packageName: "Starter Aura",
-    duration: "7 days",
-    price: "$4.99",
-    userPurchase: "2000",
-    createdOn: "01-02-2025",
-    status: "Active",
-  },
-  {
-    id: 2,
-    packageName: "Pro Aura",
-    duration: "30 days",
-    price: "$9.99",
-    userPurchase: "950",
-    createdOn: "02-02-2025",
-    status: "Active",
-  },
-  {
-    id: 3,
-    packageName: "Premium Aura",
-    duration: "90 days",
-    price: "$19.99",
-    userPurchase: "120",
-    createdOn: "03-02-2025",
-    status: "Inactive",
-  },
-];
-
 export function AuraPackage() {
-  const [rows, setRows] = useState<PackageRow[]>(packageData);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Get values from URL or set defaults
+  const currentPage = Number(searchParams.get("page")) || 1;
+  const statusFilter = (searchParams.get("status") as StatusFilter) || "Status";
+  const itemsPerPage = 5;
 
-  const [toggleStates, setToggleStates] = useState<Record<number, boolean>>(
-    packageData.reduce((acc, row) => {
-      acc[row.id] = row.status === "Active";
-      return acc;
-    }, {} as Record<number, boolean>)
-  );
-
-  // Status filter (default "Status" shows all)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("Status");
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
-
-  // Edit modal state
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<PackageRow | null>(null);
 
-  const handleToggle = (id: number) =>
-    setToggleStates((prev) => {
-      const next = !prev[id];
-      setRows((rs) =>
-        rs.map((r) =>
-          r.id === id ? { ...r, status: next ? "Active" : "Inactive" } : r
-        )
-      );
-      return { ...prev, [id]: next };
+  // Update URL parameters
+  const updateURL = (params: Record<string, string>) => {
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value && value !== "Status") {
+        newSearchParams.set(key, value);
+      } else {
+        newSearchParams.delete(key);
+      }
     });
 
-  // Apply filter BEFORE pagination
-  const filtered = rows.filter((r) =>
-    statusFilter === "Status" ? true : r.status === statusFilter
-  );
+    router.push(`?${newSearchParams.toString()}`, { scroll: false });
+  };
 
-  // Pagination on filtered
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentRows = filtered.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+  // Build API query params
+  const apiQueryParams = useMemo(() => {
+    const params = [
+      { name: "page", value: String(currentPage) },
+      { name: "limit", value: String(itemsPerPage) },
+    ];
+    
+    if (statusFilter !== "Status") {
+      params.push({ 
+        name: "isActive", 
+        value: statusFilter === "Active" ? "true" : "false" 
+      });
+    }
+    
+    return params;
+  }, [currentPage, statusFilter, itemsPerPage]);
+
+  // RTK Query hooks
+  const { data: apiResponse, isLoading } = useGetAllShopPackagesQuery(apiQueryParams);
+
+  const [createPackage] = useCreateShopPackageMutation();
+  const [updatePackage] = useUpdateShopPackageMutation();
+  const [updateStatus] = useUpdateShopPackageStatusMutation();
+  const [deletePackage] = useDeleteShopPackageMutation();
+
+  // Transform API data to table rows
+  const allRows: PackageRow[] = useMemo(() => {
+    if (!apiResponse?.data) return [];
+    return apiResponse.data.map((pkg) => ({
+      id: pkg._id,
+      packageName: pkg.title,
+      duration: pkg.duration,
+      description: pkg.description,
+      price: `$${pkg.price.toFixed(2)}`,
+      userPurchase: String(pkg.totalUsers || 0),
+      createdOn: formatDate(pkg.createdAt),
+      status: pkg.isActive ? "Active" : "Inactive",
+    }));
+  }, [apiResponse]);
+
+  // Pagination
+  const totalPages = apiResponse?.totalPage || 1;
 
   const headerNames = [
     "SL",
     "Package Name",
     "Duration",
+    "Description",
     "Price",
     "User Purchase",
-    "Created On",
+    // "Created On",
     "Status",
     "Action",
   ];
 
-  // Create
-  const handleCreatePackage = async (values: PackageFormValues) => {
-    const nextId = Math.max(0, ...rows.map((r) => r.id)) + 1;
-    const newRow: PackageRow = {
-      id: nextId,
-      packageName: values.packageName,
-      duration: values.duration,
-      price: `$${Number(values.price).toFixed(2)}`,
-      userPurchase: "0",
-      createdOn: formatDate(new Date()),
-      status: "Active",
-    };
-    setRows((prev) => [newRow, ...prev]);
-    setToggleStates((prev) => ({ ...prev, [nextId]: true }));
+  // Handler to change page
+  const handlePageChange = (page: number) => {
+    updateURL({ page: String(page), status: statusFilter });
   };
 
-  // Edit open
+  // Handler to change status filter
+  const handleStatusFilterChange = (status: StatusFilter) => {
+    updateURL({ page: "1", status: status });
+  };
+
+  // Create handler
+  const handleCreatePackage = async (values: PackageFormValues) => {
+    await createPackage({
+      title: values.packageName,
+      description: "Package description",
+      price: Number(values.price),
+      duration: values.duration,
+    } as any);
+  };
+
+  // Edit handler
   const handleEdit = (row: PackageRow) => {
     setEditing(row);
     setEditOpen(true);
   };
 
-  // Update
+  // Update handler
   const handleUpdatePackage = async (values: PackageFormValues) => {
     if (!editing) return;
-    setRows((rs) =>
-      rs.map((r) =>
-        r.id === editing.id
-          ? {
-              ...r,
-              packageName: values.packageName,
-              duration: values.duration,
-              price: `$${Number(values.price).toFixed(2)}`,
-            }
-          : r
-      )
-    );
+    await updatePackage({
+      _id: editing.id,
+      title: values.packageName,
+      description: "Package description",
+      price: Number(values.price),
+      duration: values.duration,
+    } as any);
     setEditOpen(false);
     setEditing(null);
   };
 
-  // Delete
-  const handleDelete = (id: number) => {
-    setRows((rs) => rs.filter((r) => r.id !== id));
-    setToggleStates((prev) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [id]: removed, ...rest } = prev;
-      return rest;
-    });
-    if (editing?.id === id) {
-      setEditOpen(false);
-      setEditing(null);
+  // Toggle status handler
+  const handleToggle = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === "Active";
+    await updateStatus({ id, status: String(!newStatus) });
+  };
+
+  // Delete handler
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this package?")) {
+      await deletePackage(id);
+      if (editing?.id === id) {
+        setEditOpen(false);
+        setEditing(null);
+      }
     }
   };
 
-  // Prefill for edit dialog
+  // Edit initial values
   const editInitialValues = useMemo(() => {
     if (!editing) return undefined;
     return {
       packageName: editing.packageName,
       duration: editing.duration as PackageFormValues["duration"],
       price: editing.price.replace(/^\$/, ""),
+      description: editing.description,
     } as Partial<PackageFormValues>;
   }, [editing]);
 
+  if (isLoading) {
+    return (
+      <div className="w-full mx-auto space-y-2 my-5 flex justify-center items-center min-h-[400px]">
+        <p className="text-white text-lg">Loading packages...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full mx-auto space-y-2 my-5">
-      {/* Header Controls Section */}
+      {/* Header Controls */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-end">
-        {/* Filters */}
-        <div className="flex gap-3">
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => setStatusFilter(v as StatusFilter)}
-          >
-            <SelectTrigger className="w-32 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4 text-white" />
-                <SelectValue placeholder="Status" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Status">Status</SelectItem>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Status Filter */}
+        <Select
+          value={statusFilter}
+          onValueChange={handleStatusFilterChange}
+        >
+          <SelectTrigger className="w-32 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4 text-white" />
+              <SelectValue placeholder="Status" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Status">Status</SelectItem>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
 
-        {/* Create New Package */}
-        <div className="flex gap-3">
-          <PackageDialog
-            trigger={
-              <Button className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 px-6 hover:bg-white/30 transition-all duration-200">
-                Create New Package
-              </Button>
-            }
-            onSubmit={handleCreatePackage}
-            title="Create New Package"
-          />
-        </div>
+        {/* Create Package */}
+        <PackageDialog
+          trigger={
+            <Button className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 px-6 hover:bg-white/30 transition-all duration-200">
+              Create New Package
+            </Button>
+          }
+          onSubmit={handleCreatePackage}
+          title="Create New Package"
+        />
       </div>
 
       <div className="flex flex-col justify-end items-end">
         {/* Table */}
         <Table
-          rows={currentRows}
-          toggleStates={toggleStates}
-          handleToggle={handleToggle}
+          rows={allRows}
           headerNames={headerNames}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onToggle={handleToggle}
         />
 
         {/* Pagination */}
@@ -228,7 +240,7 @@ export function AuraPackage() {
           {Array.from({ length: totalPages }, (_, index) => (
             <Button
               key={index}
-              onClick={() => setCurrentPage(index + 1)}
+              onClick={() => handlePageChange(index + 1)}
               className={`${
                 currentPage === index + 1
                   ? "bg-cyan-500 text-white"
@@ -241,7 +253,7 @@ export function AuraPackage() {
         </div>
       </div>
 
-      {/* EDIT (controlled) */}
+      {/* Edit Dialog */}
       <PackageDialog
         open={editOpen}
         onOpenChange={setEditOpen}

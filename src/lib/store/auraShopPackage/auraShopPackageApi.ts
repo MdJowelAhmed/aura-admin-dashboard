@@ -59,7 +59,7 @@ const shopPackageApi = api.injectEndpoints({
     }),
     getSingleShopPackage: build.query<PromoCodeResponse, string>({
       query: (id) => ({
-        url: `/promo/${id}`,
+        url: `/aura/${id}`,
         method: "GET",
       }),
       providesTags: ["Users"],
@@ -74,7 +74,7 @@ const shopPackageApi = api.injectEndpoints({
     }),
     updateShopPackage: build.mutation<PromoCodeResponse, Promo>({
       query: (promo) => ({
-        url: `/promo/${promo._id}`,
+        url: `/aura/${promo._id}`,
         method: "PATCH",
         body: promo,
       }),
@@ -85,7 +85,7 @@ const shopPackageApi = api.injectEndpoints({
       { id: string; status: string }
     >({
       query: ({ id, status }) => ({
-        url: `/promo/toggle/${id}`,
+        url: `/aura/toggle/${id}`,
         method: "PATCH",
         body: { status },
       }),
@@ -93,7 +93,7 @@ const shopPackageApi = api.injectEndpoints({
     }),
     deleteShopPackage: build.mutation<PromoCodeResponse, string>({
       query: (id) => ({
-        url: `/promo/${id}`,
+        url: `/aura/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Users"],
