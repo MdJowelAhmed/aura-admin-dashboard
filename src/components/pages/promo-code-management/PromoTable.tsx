@@ -50,7 +50,7 @@ export function Table({
       {/* Body */}
       <div className="bg-white/20 backdrop-blur-md rounded-xl border border-white/20 overflow-x-auto max-w-full">
         <div className="p-4 space-y-4">
-          {promos.map((p) => (
+          {promos?.map((p) => (
             <div
               key={p.id}
               className="bg-white/90 backdrop-blur-sm rounded-lg border border-white/20 p-2 hover:bg-white/95 transition-all duration-200"
@@ -112,7 +112,7 @@ export function Table({
             </div>
           ))}
 
-          {promos.length === 0 && (
+          {promos?.length === 0 && (
             <div className="text-center text-white/90 py-6">
               No promo codes found.
             </div>
