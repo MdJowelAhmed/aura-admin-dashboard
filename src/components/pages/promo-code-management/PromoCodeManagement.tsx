@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import CustomPagination from "@/components/share/CustomPagination";
 import { useRouter, useSearchParams } from "next/navigation";
+import ConfirmDialog from "@/components/share/ConfirmDialog";
 
 type PromoRow = {
   id: string;
@@ -62,12 +63,13 @@ const mapPromoToRow = (promo: Promo): PromoRow => ({
 // Map form values to API payload
 const mapFormToPayload = (values: PromoFormValues) => {
   const numericValue = parseFloat(values.value.replace(/[%৳]/g, "").trim());
-  
+
   return {
     promoCode: values.promoCode.trim(),
-    discountType: values.discountType === "Percentage" 
-      ? "Percentage Discount" 
-      : "Flat Discount",
+    discountType:
+      values.discountType === "Percentage"
+        ? "Percentage Discount"
+        : "Flat Discount",
     value: numericValue,
     usageLimit: Number(values.usageLimit),
     startDate: new Date(values.startDateTime).toISOString(),
@@ -83,6 +85,11 @@ export function PromoCodeManagement() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<PromoRow | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmData, setConfirmData] = useState<{
+    id: string;
+    action: "delete" | "status";
+  } | null>(null);
 
   const updateQuery = (key: string, value: string) => {
     const query = new URLSearchParams(params.toString());
@@ -99,15 +106,15 @@ export function PromoCodeManagement() {
     { name: "page", value: String(currentPage) },
     { name: "limit", value: String(itemsPerPage) },
   ];
-  
+
   if (statusFilter !== "all") {
     queryParams.push({ name: "isActive", value: statusFilter });
   }
- 
+
   // API hooks
   const { data: response, isLoading } = useGetAllPromoCodesQuery(queryParams);
   console.log(response);
-  
+
   const [createPromo] = useCreatePromoCodeMutation();
   const [updatePromo] = useUpdatePromoCodeMutation();
   const [updateStatus] = useUpdatePromoCodeStatusMutation();
@@ -155,34 +162,69 @@ export function PromoCodeManagement() {
     }
   };
 
-  const handleToggle = async (id: string) => {
-    try {
-      const promo = promos.find((p) => p.id === id);
-      if (!promo) return;
+  // const handleToggle = async (id: string) => {
+  //   try {
+  //     const promo = promos.find((p) => p.id === id);
+  //     if (!promo) return;
 
-      const newStatus = promo.status === "Active" ? "inactive" : "active";
-      await updateStatus({ id, status: newStatus }).unwrap();
-      toast.success("Status updated successfully!");
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to update status");
-      console.error("Toggle error:", error);
-    }
+  //     const newStatus = promo.status === "Active" ? "inactive" : "active";
+  //     await updateStatus({ id, status: newStatus }).unwrap();
+  //     toast.success("Status updated successfully!");
+  //   } catch (error: any) {
+  //     toast.error(error?.data?.message || "Failed to update status");
+  //     console.error("Toggle error:", error);
+  //   }
+  // };
+  const askStatusUpdate = (id: string) => {
+    setConfirmData({ id, action: "status" });
+    setConfirmOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this promo code?")) return;
+  const handleConfirm = async () => {
+    if (!confirmData) return;
+
+    const { id, action } = confirmData;
 
     try {
-      await deletePromo(id).unwrap();
-      toast.success("Promo code deleted successfully!");
-      if (editing?.id === id) {
-        setEditOpen(false);
-        setEditing(null);
+      if (action === "delete") {
+        await deletePromo(id).unwrap();
+        toast.success("Promo code deleted!");
+      }
+
+      if (action === "status") {
+        const promo = promos.find((p) => p.id === id);
+        if (!promo) return;
+
+        const newStatus = promo.status === "Active" ? "inactive" : "active";
+        await updateStatus({ id, status: newStatus }).unwrap();
+        toast.success("Status updated!");
       }
     } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to delete promo code");
-      console.error("Delete error:", error);
+      toast.error(error?.data?.message || "Operation failed");
     }
+
+    setConfirmData(null);
+  };
+
+  // const handleDelete = async (id: string) => {
+  //   if (!confirm("Are you sure you want to delete this promo code?")) return;
+
+  //   try {
+  //     await deletePromo(id).unwrap();
+  //     toast.success("Promo code deleted successfully!");
+  //     if (editing?.id === id) {
+  //       setEditOpen(false);
+  //       setEditing(null);
+  //     }
+  //   } catch (error: any) {
+  //     toast.error(error?.data?.message || "Failed to delete promo code");
+  //     console.error("Delete error:", error);
+  //   }
+  // };
+
+  const askDelete = (id: string) => {
+    setConfirmData({ id, action: "delete" });
+    setConfirmOpen(true);
   };
 
   const handleEdit = (row: PromoRow) => {
@@ -203,7 +245,7 @@ export function PromoCodeManagement() {
     : undefined;
 
   const headerNames = [
-   "SL", 
+    "SL",
     "Promo Code",
     "Type",
     "Usage Limit",
@@ -255,10 +297,10 @@ export function PromoCodeManagement() {
           <Table
             promos={promos}
             toggleStates={toggleStates}
-            handleToggle={handleToggle}
+            handleToggle={askStatusUpdate}
             headerNames={headerNames}
             onEdit={handleEdit}
-            onDelete={handleDelete}
+            onDelete={askDelete}
           />
 
           {/* Pagination */}
@@ -273,6 +315,20 @@ export function PromoCodeManagement() {
           )}
         </div>
       )}
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={handleConfirm}
+        title={
+          confirmData?.action === "delete" ? "Delete Promo?" : "Change Status?"
+        }
+        description={
+          confirmData?.action === "delete"
+            ? "Are you sure you want to delete this promo code?"
+            : "Are you sure you want to change the status?"
+        }
+        confirmText={confirmData?.action === "delete" ? "Delete" : "Update"}
+      />
 
       {/* Edit Dialog */}
       <PromoDialog

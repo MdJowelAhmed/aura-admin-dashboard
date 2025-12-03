@@ -59,7 +59,7 @@ export function Table({
             >
               <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_80px_160px] gap-4 items-center text-sm">
                 {/* SL */}
-                <div className="text-[#100F0E] font-medium ml-3">{row.id}</div>
+                {/* <div className="text-[#100F0E] font-medium ml-3">{row.id}</div> */}
 
                 {/* Total Aura */}
                 <div className="text-[#100F0E] font-medium">
@@ -73,7 +73,7 @@ export function Table({
                 <div className="text-[#100F0E]">{row.userPurchase}</div>
 
                 {/* Created On */}
-                <div className="text-[#100F0E]">{row.createdOn}</div>
+                {/* <div className="text-[#100F0E]">{row.createdOn}</div> */}
 
                 {/* Status */}
                 <div>
@@ -84,7 +84,8 @@ export function Table({
                         : "bg-gray-200 text-gray-700"
                     }`}
                   >
-                    {toggleStates[row.id] ? "Active" : "Inactive"}
+                    {/* {toggleStates[row.id] ? "Active" : "Inactive"} */}
+                    {row.status}
                   </span>
                 </div>
 

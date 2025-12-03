@@ -36,7 +36,7 @@ function formatDate(isoDate: string): string {
 export function AuraPackage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // Get values from URL or set defaults
   const currentPage = Number(searchParams.get("page")) || 1;
   const statusFilter = (searchParams.get("status") as StatusFilter) || "Status";
@@ -48,7 +48,7 @@ export function AuraPackage() {
   // Update URL parameters
   const updateURL = (params: Record<string, string>) => {
     const newSearchParams = new URLSearchParams(searchParams.toString());
-    
+
     Object.entries(params).forEach(([key, value]) => {
       if (value && value !== "Status") {
         newSearchParams.set(key, value);
@@ -66,19 +66,20 @@ export function AuraPackage() {
       { name: "page", value: String(currentPage) },
       { name: "limit", value: String(itemsPerPage) },
     ];
-    
+
     if (statusFilter !== "Status") {
-      params.push({ 
-        name: "isActive", 
-        value: statusFilter === "Active" ? "true" : "false" 
+      params.push({
+        name: "isActive",
+        value: statusFilter === "Active" ? "true" : "false",
       });
     }
-    
+
     return params;
   }, [currentPage, statusFilter, itemsPerPage]);
 
   // RTK Query hooks
-  const { data: apiResponse, isLoading } = useGetAllShopPackagesQuery(apiQueryParams);
+  const { data: apiResponse, isLoading } =
+    useGetAllShopPackagesQuery(apiQueryParams);
 
   const [createPackage] = useCreateShopPackageMutation();
   const [updatePackage] = useUpdateShopPackageMutation();
@@ -106,8 +107,9 @@ export function AuraPackage() {
   const headerNames = [
     "SL",
     "Package Name",
-    "Duration",
+
     "Description",
+    "Duration",
     "Price",
     "User Purchase",
     // "Created On",
@@ -196,10 +198,7 @@ export function AuraPackage() {
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-end">
         {/* Status Filter */}
-        <Select
-          value={statusFilter}
-          onValueChange={handleStatusFilterChange}
-        >
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger className="w-32 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-white" />

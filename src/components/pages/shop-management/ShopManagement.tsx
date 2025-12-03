@@ -2,7 +2,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Table, BundleRow } from "./ShopTable";
 import type { AuraFormValues } from "./AuraBundleForm";
 import type { CallFormValues } from "./CallBundleForm";
@@ -16,64 +16,52 @@ import {
 import { SlidersHorizontal } from "lucide-react";
 import AuraBundleDialog from "@/components/modal/AuraBundleDialog";
 import CallBundleDialog from "@/components/modal/CallBundleDialog";
+import {
+  useGetAllShopManagementQuery,
+  useCreateShopManagementMutation,
+  useUpdateShopManagementMutation,
+  useUpdateShopManagementStatusMutation,
+  useDeleteShopManagementMutation,
+  type ShopManagement,
+} from "@/lib/store/shopManagement/shopManagementApi";
+import { toast } from "sonner"; // or your toast library
 
 // Helpers
-function formatDate(d: Date): string {
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
+function formatDate(d: string | Date): string {
+  const date = typeof d === "string" ? new Date(d) : d;
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
   return `${dd}-${mm}-${yyyy}`;
 }
 
-type StatusFilter = "Status" | "Active" | "Inactive";
+type StatusFilter = "Status" | "Active" | "Block";
 type BundleFilter = "All" | "Aura Bundle" | "Call Bundle";
 
-// Sample bundle data (internal field bundleType added; not shown in table)
-const seedData: BundleRow[] = [
-  {
-    id: 1,
-    bundleType: "Aura",
-    totalAura: "550",
-    totalPrice: "$4.99",
-    userPurchase: "2000",
-    createdOn: "01-02-2025",
-    status: "Active",
-  },
-  {
-    id: 2,
-    bundleType: "Call",
-    totalAura: "100", // Aura needed
-    totalPrice: "10 min", // Time
-    userPurchase: "950",
-    createdOn: "02-02-2025",
-    status: "Active",
-  },
-  {
-    id: 3,
-    bundleType: "Aura",
-    totalAura: "3000",
-    totalPrice: "$19.99",
-    userPurchase: "120",
-    createdOn: "03-02-2025",
-    status: "Inactive",
-  },
-];
+// Convert API data to table row format
+function mapApiDataToRow(item: ShopManagement): BundleRow {
+  const isAura = item.bundleType === "aura";
+  const isCall = item.bundleType === "call";
+
+  return {
+    id: item._id,
+    bundleType: isAura ? "Aura" : "Call",
+    totalAura: isAura
+      ? String(item.auraBundle?.auraNumber || "0")
+      : String(item.callBundle?.neededAura || "0"),
+    totalPrice: isAura
+      ? `${Number(item.auraBundle?.amount || 0).toFixed(2)}`
+      : `${item.callBundle?.enterTime || 0} min`,
+    userPurchase: "0", // Not provided in API, keeping as placeholder
+    createdOn: formatDate(item.createdAt),
+    status: item.status === "active" ? "Active" : "Block",
+  };
+}
 
 export function ShopManagement() {
-  const [rows, setRows] = useState<BundleRow[]>(seedData);
-
-  const [toggleStates, setToggleStates] = useState<Record<number, boolean>>(
-    seedData.reduce((acc, b) => {
-      acc[b.id] = b.status === "Active";
-      return acc;
-    }, {} as Record<number, boolean>)
-  );
-
-  // Filters
+  // Filters & Pagination
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Status");
   const [bundleFilter, setBundleFilter] = useState<BundleFilter>("All");
-
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
 
@@ -82,81 +70,127 @@ export function ShopManagement() {
   const [editCallOpen, setEditCallOpen] = useState(false);
   const [editing, setEditing] = useState<BundleRow | null>(null);
 
-  // Handle toggle
-  const handleToggle = (id: number) => {
-    setToggleStates((prev) => {
-      const next = !prev[id];
-      setRows((rs) =>
-        rs.map((r) =>
-          r.id === id ? { ...r, status: next ? "Active" : "Inactive" } : r
-        )
-      );
-      return { ...prev, [id]: next };
-    });
-  };
+  // API hooks
+  const queryArgs = useMemo(() => {
+    const args: Array<{ name: string; value: string }> = [
+      { name: "page", value: String(currentPage) },
+      { name: "limit", value: String(itemsPerPage) },
+    ];
+    
+    if (statusFilter !== "Status") {
+      args.push({
+        name: "isActive",
+        value: statusFilter === "Active" ? "true" : "false",
+      });
+    }
+    
+    if (bundleFilter !== "All") {
+      args.push({
+        name: "bundleType",
+        value: bundleFilter === "Aura Bundle" ? "aura" : "call",
+      });
+    }
+    
+    return args;
+  }, [currentPage, itemsPerPage, statusFilter, bundleFilter]);
 
-  // Filtering (apply BEFORE pagination)
-  const filtered = rows.filter((r) => {
-    const statusOk =
-      statusFilter === "Status" ? true : r.status === statusFilter;
-    const bundleOk =
-      bundleFilter === "All"
-        ? true
-        : bundleFilter === "Aura Bundle"
-        ? r.bundleType === "Aura"
-        : r.bundleType === "Call";
-    return statusOk && bundleOk;
-  });
+  const { data, isLoading, refetch } = useGetAllShopManagementQuery(queryArgs);
+  const [createBundle] = useCreateShopManagementMutation();
+  const [updateBundle] = useUpdateShopManagementMutation();
+  const [updateStatus] = useUpdateShopManagementStatusMutation();
+  const [deleteBundle] = useDeleteShopManagementMutation();
 
-  // Pagination from filtered
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentBundles = filtered.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+  // Map API data to table rows
+  const rows = useMemo(() => {
+    if (!data?.data) return [];
+    return data.data.map(mapApiDataToRow);
+  }, [data]);
+
+  // Toggle states from API data
+  const toggleStates = useMemo(() => {
+    if (!data?.data) return {};
+    return data.data.reduce((acc, item) => {
+      acc[item._id] = item.status === "active";
+      return acc;
+    }, {} as Record<string, boolean>);
+  }, [data]);
+
+  // Pagination from API
+  const totalPages = data?.pagination?.totalPage || 1;
 
   const headerNames = [
-    "SL",
+    // "SL",
     "Total Aura",
     "Total Price",
     "User Purchase",
-    "Created On",
+    // "Created On",
     "Status",
     "Action",
   ];
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, bundleFilter]);
+
+  // Handle toggle
+  const handleToggle = async (id: string) => {
+    try {
+      const currentStatus = toggleStates[id];
+      await updateStatus({
+        id,
+        status: currentStatus ? "block" : "active",
+      }).unwrap();
+      
+      toast.success("Status updated successfully");
+      refetch();
+    } catch (error) {
+      toast.error("Failed to update status");
+      console.error("Toggle error:", error);
+    }
+  };
+
   // Add New Aura Bundle
   const handleAddAura = async (values: AuraFormValues) => {
-    const nextId = Math.max(0, ...rows.map((r) => r.id)) + 1;
-    const newRow: BundleRow = {
-      id: nextId,
-      bundleType: "Aura",
-      totalAura: String(Number(values.aura)),
-      totalPrice: `$${Number(values.amount).toFixed(2)}`,
-      userPurchase: "0",
-      createdOn: formatDate(new Date()),
-      status: "Active",
-    };
-    setRows((prev) => [newRow, ...prev]);
-    setToggleStates((prev) => ({ ...prev, [nextId]: true }));
+    try {
+      await createBundle({
+        bundleType: "aura",
+        auraBundle: {
+          auraNumber: Number(values.aura),
+          amount: Number(values.amount),
+        },
+        isActive: true,
+      } as any).unwrap();
+      
+      toast.success("Aura bundle created successfully");
+      refetch();
+    } catch (error) {
+      toast.error("Failed to create aura bundle");
+      console.error("Create error:", error);
+    }
   };
 
   // Add New Call Bundle
   const handleAddCall = async (values: CallFormValues) => {
-    const nextId = Math.max(0, ...rows.map((r) => r.id)) + 1;
-    const newRow: BundleRow = {
-      id: nextId,
-      bundleType: "Call",
-      totalAura: values.auraNeeded, // aura needed
-      totalPrice: `${Number(values.time)} min`, // time label
-      userPurchase: "0",
-      createdOn: formatDate(new Date()),
-      status: "Active",
-    };
-    setRows((prev) => [newRow, ...prev]);
-    setToggleStates((prev) => ({ ...prev, [nextId]: true }));
+    try {
+      await createBundle({
+        bundleType: "call",
+        callBundle: {
+          enterTime: Number(values.time),
+          neededAura: Number(values.auraNeeded),
+        },
+        isActive: true,
+      } as any).unwrap();
+      
+      toast.success("Call bundle created successfully");
+      refetch();
+    } catch (error) {
+      toast.error("Failed to create call bundle");
+      console.error("Create error:", error);
+    }
   };
 
-  // Edit open — pick modal based on bundleType
+  // Edit open
   const handleEdit = (row: BundleRow) => {
     setEditing(row);
     if (row.bundleType === "Aura") setEditAuraOpen(true);
@@ -166,58 +200,75 @@ export function ShopManagement() {
   // Edit submit (Aura)
   const handleUpdateAura = async (values: AuraFormValues) => {
     if (!editing) return;
-    setRows((rs) =>
-      rs.map((r) =>
-        r.id === editing.id
-          ? {
-              ...r,
-              totalAura: String(Number(values.aura)),
-              totalPrice: `$${Number(values.amount).toFixed(2)}`,
-            }
-          : r
-      )
-    );
-    setEditAuraOpen(false);
-    setEditing(null);
+    
+    try {
+      await updateBundle({
+        _id: editing.id,
+        bundleType: "aura",
+        auraBundle: {
+          auraNumber: Number(values.aura),
+          amount: Number(values.amount),
+        },
+      } as any).unwrap();
+      
+      toast.success("Aura bundle updated successfully");
+      setEditAuraOpen(false);
+      setEditing(null);
+      refetch();
+    } catch (error) {
+      toast.error("Failed to update aura bundle");
+      console.error("Update error:", error);
+    }
   };
 
   // Edit submit (Call)
   const handleUpdateCall = async (values: CallFormValues) => {
     if (!editing) return;
-    setRows((rs) =>
-      rs.map((r) =>
-        r.id === editing.id
-          ? {
-              ...r,
-              totalAura: values.auraNeeded,
-              totalPrice: `${Number(values.time)} min`,
-            }
-          : r
-      )
-    );
-    setEditCallOpen(false);
-    setEditing(null);
+    
+    try {
+      await updateBundle({
+        _id: editing.id,
+        bundleType: "call",
+        callBundle: {
+          enterTime: Number(values.time),
+          neededAura: Number(values.auraNeeded),
+        },
+      } as any).unwrap();
+      
+      toast.success("Call bundle updated successfully");
+      setEditCallOpen(false);
+      setEditing(null);
+      refetch();
+    } catch (error) {
+      toast.error("Failed to update call bundle");
+      console.error("Update error:", error);
+    }
   };
 
   // Delete
-  const handleDelete = (id: number) => {
-    setRows((rs) => rs.filter((r) => r.id !== id));
-    setToggleStates((prev) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [id]: removed, ...rest } = prev;
-      return rest;
-    });
-    if (editing?.id === id) {
-      setEditAuraOpen(false);
-      setEditCallOpen(false);
-      setEditing(null);
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this bundle?")) return;
+    
+    try {
+      await deleteBundle(id).unwrap();
+      toast.success("Bundle deleted successfully");
+      
+      if (editing?.id === id) {
+        setEditAuraOpen(false);
+        setEditCallOpen(false);
+        setEditing(null);
+      }
+      
+      refetch();
+    } catch (error) {
+      toast.error("Failed to delete bundle");
+      console.error("Delete error:", error);
     }
   };
 
   // Prefill for editing forms
   const auraInitialValues = useMemo(() => {
     if (!editing || editing.bundleType !== "Aura") return undefined;
-    // totalPrice like "$4.99" -> number
     const amount = editing.totalPrice.replace(/^\$/, "");
     return {
       aura: editing.totalAura,
@@ -227,13 +278,22 @@ export function ShopManagement() {
 
   const callInitialValues = useMemo(() => {
     if (!editing || editing.bundleType !== "Call") return undefined;
-    // totalPrice like "10 min" -> "10"
     const time = editing.totalPrice.replace(/\s*min$/i, "");
     return {
       time,
       auraNeeded: editing.totalAura,
     };
   }, [editing]);
+
+  if (isLoading) {
+    return (
+      <div className="w-full mx-auto space-y-2 my-5">
+        <div className="flex justify-center items-center py-20">
+          <div className="text-white text-lg">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full mx-auto space-y-2 my-5">
@@ -255,7 +315,7 @@ export function ShopManagement() {
             <SelectContent>
               <SelectItem value="Status">Status</SelectItem>
               <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Inactive">Inactive</SelectItem>
+              <SelectItem value="Block">Block</SelectItem>
             </SelectContent>
           </Select>
 
@@ -307,7 +367,7 @@ export function ShopManagement() {
       <div className="flex flex-col justify-end items-end">
         {/* Table */}
         <Table
-          bundles={currentBundles}
+          bundles={rows}
           toggleStates={toggleStates}
           handleToggle={handleToggle}
           headerNames={headerNames}
