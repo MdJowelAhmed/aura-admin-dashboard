@@ -2,23 +2,27 @@ import { Button } from "@/components/ui/button";
 import { Edit3, Trash2 } from "lucide-react";
 
 export type PromoRow = {
-  id: number;
+  id: string;
   promoCode: string;
   type: "Percentage" | "Flat";
   usageLimit: number;
+  startISO: string;
+  endISO: string;
   startTime: string; // display string
   endTime: string; // display string
   status: "Active" | "Inactive";
+  value: number;
+  usedCount: number;
   imageUrl?: string; // optional thumbnail preview
 };
 
 interface TableProps {
   promos: PromoRow[];
-  toggleStates: Record<number, boolean>;
-  handleToggle: (id: number) => void;
+  toggleStates: Record<string, boolean>;
+  handleToggle: (id: string) => void;
   headerNames: string[];
   onEdit: (row: PromoRow) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
 }
 
 export function Table({

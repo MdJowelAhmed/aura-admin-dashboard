@@ -1,25 +1,26 @@
 import { api } from "../baseApi";
-// enums / helper types
-type ShopType =
-  | "Call"
-  | "Bundle"
-  | string;
 
-// single promo item
+// Bundle sub-types
+export interface AuraBundle {
+  auraNumber: number;
+  amount: number;
+}
+
+export interface CallBundle {
+  enterTime: number;
+  neededAura: number;
+}
+
+// Shop management item
 export interface ShopManagement {
   _id: string;
-  promoCode: string;
-  shopType: ShopType;
-  value: number;
-  usageLimit: number;
-  usedCount: number;
-  startDate: string; // ISO date string (e.g. "2025-09-20T00:00:00.000Z")
-  endDate: string; // ISO date string (e.g. "2025-10-20T23:59:59.999Z")
-  image: string | null;
+  bundleType: "aura" | "call";
+  auraBundle?: AuraBundle;
+  callBundle?: CallBundle;
+  status: "active" | "block";
   isActive: boolean;
-  createdBy: string;
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
+  createdAt: string;
+  updatedAt: string;
 }
 
 // pagination block

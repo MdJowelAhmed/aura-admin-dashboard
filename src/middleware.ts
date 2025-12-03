@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function middleware(_request: NextRequest) {
   // Note: Since we're using localStorage (client-side only), we can't check tokens here
   // Token validation will happen on the client-side through Redux and protected components
   // This middleware just allows all requests to pass through

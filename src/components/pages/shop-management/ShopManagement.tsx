@@ -41,7 +41,6 @@ type BundleFilter = "All" | "Aura Bundle" | "Call Bundle";
 // Convert API data to table row format
 function mapApiDataToRow(item: ShopManagement): BundleRow {
   const isAura = item.bundleType === "aura";
-  const isCall = item.bundleType === "call";
 
   return {
     id: item._id,
@@ -109,7 +108,7 @@ export function ShopManagement() {
   // Toggle states from API data
   const toggleStates = useMemo(() => {
     if (!data?.data) return {};
-    return data.data.reduce((acc, item) => {
+    return data.data.reduce((acc: Record<string, boolean>, item: ShopManagement) => {
       acc[item._id] = item.status === "active";
       return acc;
     }, {} as Record<string, boolean>);
@@ -160,7 +159,7 @@ export function ShopManagement() {
           amount: Number(values.amount),
         },
         isActive: true,
-      } as any).unwrap();
+      } as unknown as ShopManagement).unwrap();
       
       toast.success("Aura bundle created successfully");
       refetch();
@@ -180,7 +179,7 @@ export function ShopManagement() {
           neededAura: Number(values.auraNeeded),
         },
         isActive: true,
-      } as any).unwrap();
+      } as unknown as ShopManagement).unwrap();
       
       toast.success("Call bundle created successfully");
       refetch();
@@ -209,7 +208,7 @@ export function ShopManagement() {
           auraNumber: Number(values.aura),
           amount: Number(values.amount),
         },
-      } as any).unwrap();
+      } as unknown as ShopManagement).unwrap();
       
       toast.success("Aura bundle updated successfully");
       setEditAuraOpen(false);
@@ -233,7 +232,7 @@ export function ShopManagement() {
           enterTime: Number(values.time),
           neededAura: Number(values.auraNeeded),
         },
-      } as any).unwrap();
+      } as unknown as ShopManagement).unwrap();
       
       toast.success("Call bundle updated successfully");
       setEditCallOpen(false);

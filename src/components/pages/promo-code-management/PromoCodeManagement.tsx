@@ -139,10 +139,11 @@ export function PromoCodeManagement() {
   const handleCreate = async (values: PromoFormValues) => {
     try {
       const payload = mapFormToPayload(values);
-      await createPromo(payload as any).unwrap();
+      await createPromo(payload as unknown as Promo).unwrap();
       toast.success("Promo code created successfully!");
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to create promo code");
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string } };
+      toast.error(err?.data?.message || "Failed to create promo code");
       console.error("Create error:", error);
     }
   };
@@ -152,12 +153,13 @@ export function PromoCodeManagement() {
 
     try {
       const payload = { _id: editing.id, ...mapFormToPayload(values) };
-      await updatePromo(payload as any).unwrap();
+      await updatePromo(payload as unknown as Promo).unwrap();
       toast.success("Promo code updated successfully!");
       setEditOpen(false);
       setEditing(null);
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to update promo code");
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string } };
+      toast.error(err?.data?.message || "Failed to update promo code");
       console.error("Update error:", error);
     }
   };
@@ -192,15 +194,16 @@ export function PromoCodeManagement() {
       }
 
       if (action === "status") {
-        const promo = promos.find((p) => p.id === id);
+        const promo = promos.find((p: PromoRow) => p.id === id);
         if (!promo) return;
 
         const newStatus = promo.status === "Active" ? "inactive" : "active";
         await updateStatus({ id, status: newStatus }).unwrap();
         toast.success("Status updated!");
       }
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Operation failed");
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string } };
+      toast.error(err?.data?.message || "Operation failed");
     }
 
     setConfirmData(null);

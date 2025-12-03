@@ -26,7 +26,8 @@ export const api = createApi({
     "Chats",
     "chatId",
     "Messages",
-    "DashboardOverview"
+    "DashboardOverview",
+    "EventManagement",
   ],
   endpoints: () => ({}),
 });

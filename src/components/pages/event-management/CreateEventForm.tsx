@@ -21,6 +21,7 @@ export const createEventSchema = z.object({
   state: z.string().min(1, "State is required"),
   startDateTime: z.string().min(1, "Start date & time is required"),
   endDateTime: z.string().min(1, "End date & time is required"),
+  selectedGame: z.string().optional(),
   thumbnail: z
     .instanceof(File)
     .optional()
@@ -33,18 +34,22 @@ export const createEventSchema = z.object({
 
 export type CreateEventFormValues = z.infer<typeof createEventSchema>;
 
-// keep your options
 const EVENT_TYPES = [
-  { label: "Unlimited Ad Time", value: "unlimited_ad_time" },
-  { label: "Limited Slots", value: "limited_slots" },
-  { label: "Premium Event", value: "premium" },
+  { label: "Unlimited Ad Time", value: "Unlimited Ad Time" },
+  { label: "Unlimited Games", value: "Unlimited Games" },
+  { label: "Limited Slots", value: "Limited Slots" },
 ];
 
 const STATES = [
-  { label: "California", value: "California" },
-  { label: "Texas", value: "Texas" },
-  { label: "New York", value: "New York" },
-  { label: "Florida", value: "Florida" },
+  { label: "Dhaka", value: "Dhaka" },
+  { label: "Chittagong", value: "Chittagong" },
+  { label: "Sylhet", value: "Sylhet" },
+  { label: "Rajshahi", value: "Rajshahi" },
+];
+
+const GAMES = [
+  { label: "Kings Dominion", value: "kdf" },
+  { label: "Racing Kings", value: "rk" },
 ];
 
 type Props = {
@@ -52,7 +57,6 @@ type Props = {
   onSubmit: (values: CreateEventFormValues) => Promise<void> | void;
   onCancel?: () => void;
   afterSubmit?: () => void;
-  /** For edit: show existing image preview (cannot prefill file input) */
   initialImageUrl?: string;
 };
 
@@ -71,6 +75,8 @@ export function CreateEventForm({
       state: initialValues?.state ?? "",
       startDateTime: initialValues?.startDateTime ?? "",
       endDateTime: initialValues?.endDateTime ?? "",
+      selectedGame: initialValues?.selectedGame ?? "",
+
       thumbnail: undefined,
     },
   });
@@ -85,7 +91,6 @@ export function CreateEventForm({
       const url = URL.createObjectURL(file);
       setPreview(url);
     } else {
-      // If user clears file, keep existing preview if initialImageUrl exists
       setPreview(initialImageUrl ?? null);
     }
   };
@@ -202,6 +207,31 @@ export function CreateEventForm({
             </FormItem>
           )}
         />
+        {/* Selected Game */}
+        <FormField
+          control={form.control}
+          name="selectedGame"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Selected Game</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select game" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {GAMES.map((g) => (
+                    <SelectItem key={g.value} value={g.value}>
+                      {g.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* Upload Thumbnail */}
         <FormField
@@ -262,7 +292,7 @@ export function CreateEventForm({
             type="submit"
             className="bg-[#00bcd4] hover:bg-[#00acc1] text-white rounded-lg border-none shadow-md"
           >
-            Create Event
+            {initialValues ? "Update Event" : "Create Event"}
           </Button>
         </div>
       </form>

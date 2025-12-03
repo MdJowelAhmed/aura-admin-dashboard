@@ -4,22 +4,22 @@ import { Edit3, Trash2 } from "lucide-react";
 export type BundleType = "Aura" | "Call";
 
 export interface BundleRow {
-  id: number;
+  id: string;
   bundleType: BundleType; // internal (not shown)
   totalAura: string;
   totalPrice: string;
   userPurchase: string;
   createdOn: string;
-  status: "Active" | "Inactive";
+  status: "Active" | "Block";
 }
 
 interface TableProps {
   bundles: BundleRow[];
-  toggleStates: Record<number, boolean>;
-  handleToggle: (id: number) => void;
+  toggleStates: Record<string, boolean>;
+  handleToggle: (id: string) => void;
   headerNames: string[];
   onEdit: (row: BundleRow) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
 }
 
 export function Table({

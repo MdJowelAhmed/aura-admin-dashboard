@@ -20,6 +20,7 @@ import {
   useUpdateShopPackageMutation,
   useUpdateShopPackageStatusMutation,
   useDeleteShopPackageMutation,
+  type Promo,
 } from "@/lib/store/auraShopPackage/auraShopPackageApi";
 
 type StatusFilter = "Status" | "Active" | "Inactive";
@@ -89,7 +90,7 @@ export function AuraPackage() {
   // Transform API data to table rows
   const allRows: PackageRow[] = useMemo(() => {
     if (!apiResponse?.data) return [];
-    return apiResponse.data.map((pkg) => ({
+    return apiResponse.data.map((pkg: { _id: string; title: string; duration: string; description: string; price: number; totalUsers?: number; createdAt: string; isActive: boolean }) => ({
       id: pkg._id,
       packageName: pkg.title,
       duration: pkg.duration,
@@ -134,7 +135,7 @@ export function AuraPackage() {
       description: "Package description",
       price: Number(values.price),
       duration: values.duration,
-    } as any);
+    } as unknown as Promo);
   };
 
   // Edit handler
@@ -152,7 +153,7 @@ export function AuraPackage() {
       description: "Package description",
       price: Number(values.price),
       duration: values.duration,
-    } as any);
+    } as unknown as Promo);
     setEditOpen(false);
     setEditing(null);
   };
