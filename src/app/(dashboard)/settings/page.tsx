@@ -1,10 +1,13 @@
-import ProfileEditForm from "@/components/pages/setting/EditProfile";
+
+import ProfilePage from "@/components/pages/setting/ProfilePage";
+import SettingManagement from "@/components/pages/setting/SettingManagement";
 
 const page = () => {
   return (
     <div>
       <title>Settings</title>
-      <ProfileEditForm />
+      {/* <SettingManagement /> */}
+      <ProfilePage />
     </div>
   );
 };
