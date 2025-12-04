@@ -106,7 +106,7 @@ const ChangePasswordForm = () => {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-2xl font-semibold text-white">Change Password</h2>
+      
         <p className="text-white/60">
           Please enter your current password and choose a new secure password
         </p>
@@ -183,16 +183,8 @@ const ChangePasswordForm = () => {
           )}
         </div>
 
-        {/* Password Requirements */}
-        <div className="bg-white/10 rounded-lg p-4 space-y-2">
-          <p className="text-white/80 text-sm font-medium">
-            Password Requirements:
-          </p>
-          <ul className="text-white/60 text-sm space-y-1 ml-4 list-disc">
-            <li>At least 8 characters long</li>
-            <li>Must not match your current password</li>
-          </ul>
-        </div>
+ 
+        
 
         {/* Save Password Button */}
         <Button
