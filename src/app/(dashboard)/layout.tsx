@@ -29,7 +29,7 @@ export default function DashboardLayout({
           <Header showButtons={false} />
         )}
 
-        <div className="px-6">{children}</div>
+        <div className="px-6" >{children}</div>
       </div>
     </div>
   );

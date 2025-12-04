@@ -23,8 +23,8 @@ import {
 } from "@/lib/store/promoCode/promoCode";
 import { toast } from "sonner";
 import CustomPagination from "@/components/share/CustomPagination";
-
-type StatusFilter = "Status" | "Active" | "Inactive";
+import { useRouter, useSearchParams } from "next/navigation";
+import ConfirmDialog from "@/components/share/ConfirmDialog";
 
 type PromoRow = {
   id: string;
@@ -33,6 +33,8 @@ type PromoRow = {
   usageLimit: number;
   startISO: string;
   endISO: string;
+  startTime: string;
+  endTime: string;
   status: "Active" | "Inactive";
   value: number;
   usedCount: number;
@@ -51,6 +53,8 @@ const mapPromoToRow = (promo: Promo): PromoRow => ({
   usageLimit: promo.usageLimit,
   startISO: promo.startDate,
   endISO: promo.endDate,
+  startTime: formatDateTime(promo.startDate),
+  endTime: formatDateTime(promo.endDate),
   status: promo.isActive ? "Active" : "Inactive",
   value: promo.value,
   usedCount: promo.usedCount,
@@ -59,12 +63,13 @@ const mapPromoToRow = (promo: Promo): PromoRow => ({
 // Map form values to API payload
 const mapFormToPayload = (values: PromoFormValues) => {
   const numericValue = parseFloat(values.value.replace(/[%৳]/g, "").trim());
-  
+
   return {
     promoCode: values.promoCode.trim(),
-    discountType: values.discountType === "Percentage" 
-      ? "Percentage Discount" 
-      : "Flat Discount",
+    discountType:
+      values.discountType === "Percentage"
+        ? "Percentage Discount"
+        : "Flat Discount",
     value: numericValue,
     usageLimit: Number(values.usageLimit),
     startDate: new Date(values.startDateTime).toISOString(),
@@ -73,25 +78,43 @@ const mapFormToPayload = (values: PromoFormValues) => {
 };
 
 export function PromoCodeManagement() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const statusFilter = params.get("status") || "all";
+  const currentPage = Number(params.get("page")) || 1;
 
-  
-  const [currentPage, setCurrentPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("Status");
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<PromoRow | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmData, setConfirmData] = useState<{
+    id: string;
+    action: "delete" | "status";
+  } | null>(null);
+
+  const updateQuery = (key: string, value: string) => {
+    const query = new URLSearchParams(params.toString());
+    if (value && value !== "all") {
+      query.set(key, value);
+    } else {
+      query.delete(key);
+    }
+    router.push(`?${query.toString()}`, { scroll: false });
+  };
 
   const itemsPerPage = 2;
-const queryParams=[
+  const queryParams = [
     { name: "page", value: String(currentPage) },
     { name: "limit", value: String(itemsPerPage) },
-  ]
-  if (statusFilter !== "Status") {
-    queryParams.push({ name: "status", value: statusFilter });
+  ];
+
+  if (statusFilter !== "all") {
+    queryParams.push({ name: "isActive", value: statusFilter });
   }
- 
+
   // API hooks
   const { data: response, isLoading } = useGetAllPromoCodesQuery(queryParams);
-console.log(response)
+  console.log(response);
+
   const [createPromo] = useCreatePromoCodeMutation();
   const [updatePromo] = useUpdatePromoCodeMutation();
   const [updateStatus] = useUpdatePromoCodeStatusMutation();
@@ -102,15 +125,9 @@ console.log(response)
     return response?.data?.map(mapPromoToRow) || [];
   }, [response?.data]);
 
-  // Filter by status
-  const filteredPromos = useMemo(() => {
-    if (statusFilter === "Status") return promos;
-    return promos.filter((p) => p.status === statusFilter);
-  }, [promos, statusFilter]);
-
   // Toggle states for UI
   const toggleStates = useMemo(() => {
-    return promos.reduce((acc, promo) => {
+    return promos.reduce((acc: Record<string, boolean>, promo: PromoRow) => {
       acc[promo.id] = promo.status === "Active";
       return acc;
     }, {} as Record<string, boolean>);
@@ -122,10 +139,11 @@ console.log(response)
   const handleCreate = async (values: PromoFormValues) => {
     try {
       const payload = mapFormToPayload(values);
-      await createPromo(payload as any).unwrap();
+      await createPromo(payload as unknown as Promo).unwrap();
       toast.success("Promo code created successfully!");
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to create promo code");
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string } };
+      toast.error(err?.data?.message || "Failed to create promo code");
       console.error("Create error:", error);
     }
   };
@@ -135,48 +153,85 @@ console.log(response)
 
     try {
       const payload = { _id: editing.id, ...mapFormToPayload(values) };
-      await updatePromo(payload as any).unwrap();
+      await updatePromo(payload as unknown as Promo).unwrap();
       toast.success("Promo code updated successfully!");
       setEditOpen(false);
       setEditing(null);
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to update promo code");
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string } };
+      toast.error(err?.data?.message || "Failed to update promo code");
       console.error("Update error:", error);
     }
   };
 
-  const handleToggle = async (id: string) => {
-    try {
-      const promo = promos.find((p) => p.id === id);
-      if (!promo) return;
+  // const handleToggle = async (id: string) => {
+  //   try {
+  //     const promo = promos.find((p) => p.id === id);
+  //     if (!promo) return;
 
-      const newStatus = promo.status === "Active" ? "inactive" : "active";
-      await updateStatus({ id, status: newStatus }).unwrap();
-      toast.success("Status updated successfully!");
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to update status");
-      console.error("Toggle error:", error);
-    }
+  //     const newStatus = promo.status === "Active" ? "inactive" : "active";
+  //     await updateStatus({ id, status: newStatus }).unwrap();
+  //     toast.success("Status updated successfully!");
+  //   } catch (error: any) {
+  //     toast.error(error?.data?.message || "Failed to update status");
+  //     console.error("Toggle error:", error);
+  //   }
+  // };
+  const askStatusUpdate = (id: string) => {
+    setConfirmData({ id, action: "status" });
+    setConfirmOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this promo code?")) return;
+  const handleConfirm = async () => {
+    if (!confirmData) return;
+
+    const { id, action } = confirmData;
 
     try {
-      await deletePromo(id).unwrap();
-      toast.success("Promo code deleted successfully!");
-      if (editing?.id === id) {
-        setEditOpen(false);
-        setEditing(null);
+      if (action === "delete") {
+        await deletePromo(id).unwrap();
+        toast.success("Promo code deleted!");
       }
-    } catch (error: any) {
-      toast.error(error?.data?.message || "Failed to delete promo code");
-      console.error("Delete error:", error);
+
+      if (action === "status") {
+        const promo = promos.find((p: PromoRow) => p.id === id);
+        if (!promo) return;
+
+        const newStatus = promo.status === "Active" ? "inactive" : "active";
+        await updateStatus({ id, status: newStatus }).unwrap();
+        toast.success("Status updated!");
+      }
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string } };
+      toast.error(err?.data?.message || "Operation failed");
     }
+
+    setConfirmData(null);
   };
 
-  const handleEdit = (row: any) => {
-    setEditing(row as PromoRow);
+  // const handleDelete = async (id: string) => {
+  //   if (!confirm("Are you sure you want to delete this promo code?")) return;
+
+  //   try {
+  //     await deletePromo(id).unwrap();
+  //     toast.success("Promo code deleted successfully!");
+  //     if (editing?.id === id) {
+  //       setEditOpen(false);
+  //       setEditing(null);
+  //     }
+  //   } catch (error: any) {
+  //     toast.error(error?.data?.message || "Failed to delete promo code");
+  //     console.error("Delete error:", error);
+  //   }
+  // };
+
+  const askDelete = (id: string) => {
+    setConfirmData({ id, action: "delete" });
+    setConfirmOpen(true);
+  };
+
+  const handleEdit = (row: PromoRow) => {
+    setEditing(row);
     setEditOpen(true);
   };
 
@@ -210,7 +265,7 @@ console.log(response)
         {/* Status Filter */}
         <Select
           value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+          onValueChange={(v) => updateQuery("status", v)}
         >
           <SelectTrigger className="w-32 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12">
             <div className="flex items-center gap-2">
@@ -219,9 +274,9 @@ console.log(response)
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Status">All</SelectItem>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Inactive">Inactive</SelectItem>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="true">Active</SelectItem>
+            <SelectItem value="false">Inactive</SelectItem>
           </SelectContent>
         </Select>
 
@@ -243,50 +298,40 @@ console.log(response)
       ) : (
         <div className="flex flex-col items-end">
           <Table
-            promos={filteredPromos.map((p) => ({
-              ...p,
-              id: p.id as any,
-              startTime: formatDateTime(p.startISO),
-              endTime: formatDateTime(p.endISO),
-            }))}
+            promos={promos}
             toggleStates={toggleStates}
-            handleToggle={handleToggle}
+            handleToggle={askStatusUpdate}
             headerNames={headerNames}
             onEdit={handleEdit}
-            onDelete={handleDelete}
+            onDelete={askDelete}
           />
-
-          {/* Pagination */}
-          {/* {totalPages > 1 && (
-            <div className="flex justify-center mt-6 gap-2">
-              {Array.from({ length: totalPages }, (_, i) => (
-                <Button
-                  key={i}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`${
-                    currentPage === i + 1
-                      ? "bg-cyan-500 text-white"
-                      : "bg-white/20 text-white"
-                  } rounded-lg px-4 py-2 hover:bg-cyan-400`}
-                >
-                  {i + 1}
-                </Button>
-              ))}
-            </div>
-          )} */}
 
           {/* Pagination */}
           {totalPages > 1 && (
             <CustomPagination
               currentPage={currentPage}
               totalPages={totalPages}
-              onPageChange={setCurrentPage}
+              onPageChange={(page) => updateQuery("page", String(page))}
               maxVisiblePages={5}
               scrollToTop={true}
             />
           )}
         </div>
       )}
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={handleConfirm}
+        title={
+          confirmData?.action === "delete" ? "Delete Promo?" : "Change Status?"
+        }
+        description={
+          confirmData?.action === "delete"
+            ? "Are you sure you want to delete this promo code?"
+            : "Are you sure you want to change the status?"
+        }
+        confirmText={confirmData?.action === "delete" ? "Delete" : "Update"}
+      />
 
       {/* Edit Dialog */}
       <PromoDialog

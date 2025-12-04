@@ -1,5 +1,5 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,8 +40,12 @@ const Header = ({
   activeTabShow,
   showButtons = true,
   title = "ANALYTICS & REPORTS",
-  onLogout, // optional callback
-}: any) => {
+}: {
+  setActiveTabShow?: (tab: string) => void;
+  activeTabShow?: string;
+  showButtons?: boolean;
+  title?: string;
+}) => {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useDispatch();
@@ -80,7 +84,7 @@ const Header = ({
   // Title
   const dynamicTitle = routeToTitleMap[currentTab] || title;
 
-  const handleTabChange = (tab: string) => setActiveTabShow(tab);
+  const handleTabChange = (tab: string) => setActiveTabShow?.(tab);
 
   const getButtonStyles = (tabName: string) => {
     const isActive = activeTabShow === tabName;

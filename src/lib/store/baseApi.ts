@@ -16,6 +16,7 @@ export const api = createApi({
   tagTypes: [
     "Products",
     "Users",
+    "User",
     "Orders",
     "Brands",
     "Category",
@@ -26,7 +27,9 @@ export const api = createApi({
     "Chats",
     "chatId",
     "Messages",
-    "DashboardOverview"
+    "DashboardOverview",
+    "EventManagement",
+    "Guidelines",
   ],
   endpoints: () => ({}),
 });

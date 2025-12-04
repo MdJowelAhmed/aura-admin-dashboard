@@ -5,11 +5,11 @@ import { EventRow } from "./EventManagement";
 
 interface TableProps {
   bundles: EventRow[];
-  toggleStates: Record<number, boolean>;
-  handleToggle: (id: number) => void;
+  toggleStates: Record<string, boolean>;
+  handleToggle: (id: string, currentStatus: boolean) => void;
   headerNames: string[];
   onEdit: (row: EventRow) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
 }
 
 export function Table({
@@ -22,7 +22,14 @@ export function Table({
 }: TableProps) {
   const formatDisplay = (iso: string) => {
     try {
-      return new Date(iso).toLocaleString();
+      const date = new Date(iso);
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } catch {
       return iso;
     }
@@ -49,41 +56,41 @@ export function Table({
       {/* Table Body */}
       <div className="bg-white/20 backdrop-blur-md rounded-xl border border-white/20 overflow-x-auto max-w-full">
         <div className="p-4 space-y-4">
-          {bundles.map((bundle) => (
+          {bundles.map((bundle, index) => (
             <div
-              key={bundle.id}
+              key={bundle._id}
               className="bg-white/90 backdrop-blur-sm rounded-lg border border-white/20 p-2 hover:bg-white/95 transition-all duration-200"
             >
               <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_80px_160px] gap-4 items-center text-sm">
                 <div className="text-[#100F0E] font-medium ml-3">
-                  {bundle.id}
+                  {index + 1}
                 </div>
                 <div className="text-[#100F0E] font-medium flex items-center gap-2">
-                  {/* <Image
-                    src="/aura-logo.png"
-                    alt="Event"
-                    width={36}
-                    height={36}
-                    className="rounded-full invert"
-                  /> */}
+                  {bundle.image && (
+                    <img
+                      src={`${process.env.NEXT_PUBLIC_API_URL || ""}${bundle.image}`}
+                      alt={bundle.eventName}
+                      className="w-9 h-9 rounded-full object-cover"
+                    />
+                  )}
                   <span>{bundle.eventName}</span>
                 </div>
                 <div className="text-[#100F0E]">{bundle.eventType}</div>
                 <div className="text-[#100F0E]">
-                  {formatDisplay(bundle.startTimeISO)}
+                  {formatDisplay(bundle.startDate)}
                 </div>
                 <div className="text-[#100F0E]">
-                  {formatDisplay(bundle.endTimeISO)}
+                  {formatDisplay(bundle.endDate)}
                 </div>
                 <div>
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                      toggleStates[bundle.id]
+                      toggleStates[bundle._id]
                         ? "bg-green-100 text-green-800"
                         : "bg-gray-200 text-gray-700"
                     }`}
                   >
-                    {toggleStates[bundle.id] ? "Active" : "Inactive"}
+                    {toggleStates[bundle._id] ? "Active" : "Inactive"}
                   </span>
                 </div>
 
@@ -100,15 +107,15 @@ export function Table({
                   </Button>
 
                   <button
-                    onClick={() => handleToggle(bundle.id)}
+                    onClick={() => handleToggle(bundle._id, bundle.isActive)}
                     className={`relative inline-flex h-4 w-10 items-center rounded-full transition-colors focus:outline-none ${
-                      toggleStates[bundle.id] ? "bg-cyan-500" : "bg-gray-300"
+                      toggleStates[bundle._id] ? "bg-cyan-500" : "bg-gray-300"
                     }`}
                     title="Toggle status"
                   >
                     <span
                       className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                        toggleStates[bundle.id]
+                        toggleStates[bundle._id]
                           ? "translate-x-6"
                           : "translate-x-1"
                       }`}
@@ -118,7 +125,7 @@ export function Table({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onDelete(bundle.id)}
+                    onClick={() => onDelete(bundle._id)}
                     className="w-8 h-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
                     title="Delete"
                   >

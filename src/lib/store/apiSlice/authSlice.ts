@@ -93,6 +93,32 @@ export const authApi = api.injectEndpoints({
         }
       },
     }),
+    changePassword: builder.mutation<
+      { success: boolean },
+      { oldPassword: string; newPassword: string }
+    >({
+      query: (passwords) => ({
+        url: "/auth/change-password",
+        method: "POST",
+        body: passwords,
+      }),
+      invalidatesTags: ["User"],
+    }),
+    getMyProfile: builder.query<User, void>({
+      query: () => ({
+        url: "/user/profile",
+        method: "GET",
+      }),
+      providesTags: ["User"],
+    }),
+    updateMyProfile: builder.mutation<User, Partial<User>>({
+      query: (profileUpdates) => ({
+        url: "/user",
+        method: "PATCH",
+        body: profileUpdates,
+      }),
+      invalidatesTags: ["User"],
+    }),
     logout: builder.mutation<{ success: boolean }, void>({
       query: () => ({
         url: "/auth/logout",
@@ -112,4 +138,11 @@ export const authApi = api.injectEndpoints({
   overrideExisting: false,
 });
 
-export const { useLoginMutation, useLogoutMutation } = authApi;
+export const {
+  useLoginMutation,
+  useLogoutMutation,
+  useChangePasswordMutation,
+  useGetMyProfileQuery,
+  useUpdateMyProfileMutation,
+
+} = authApi;

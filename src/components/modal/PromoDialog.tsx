@@ -19,7 +19,6 @@ type PromoDialogProps = {
   onOpenChange?: (open: boolean) => void;
   onSubmit: (values: PromoFormValues) => Promise<void> | void;
   initialValues?: Partial<PromoFormValues>;
-  initialImageUrl?: string;
   title?: string;
 };
 
@@ -29,7 +28,6 @@ export default function PromoDialog({
   onOpenChange,
   onSubmit,
   initialValues,
-  initialImageUrl,
   title,
 }: PromoDialogProps) {
   const [internalOpen, setInternalOpen] = React.useState(false);
@@ -55,7 +53,6 @@ export default function PromoDialog({
 
         <PromoForm
           initialValues={initialValues}
-          initialImageUrl={initialImageUrl}
           onSubmit={onSubmit}
           onCancel={close}
           afterSubmit={close}

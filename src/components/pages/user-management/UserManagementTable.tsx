@@ -98,7 +98,7 @@ export function UserManagement() {
 
   const debouncedSearchUpdate = useMemo(
     () => debounce((value: string) => updateQuery("search", value), 500),
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 

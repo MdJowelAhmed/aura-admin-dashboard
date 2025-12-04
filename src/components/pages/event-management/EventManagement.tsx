@@ -8,31 +8,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Table } from "./EventTable";
-
+import { useRouter, useSearchParams } from "next/navigation";
 import CreateEventDialog from "@/components/modal/CreateEventDialog";
 import type { CreateEventFormValues } from "./CreateEventForm";
+import {
+  useGetAllEventManagementQuery,
+  useCreateEventManagementMutation,
+  useUpdateEventManagementMutation,
+  useUpdateEventManagementStatusMutation,
+  useDeleteEventManagementMutation,
+} from "@/lib/store/eventManagement/eventManagementApi";
+import { toast } from "sonner";
+import CustomPagination from "@/components/share/CustomPagination";
 
-// Helpers
-function displayToISO(s: string): string {
-  // "DD-MM-YYYY hh:mm AM/PM" -> ISO
-  try {
-    const [datePart, timePart, ampm] = s.split(" ");
-    const [dd, mm, yyyy] = datePart.split("-").map(Number);
-    let [hh] = timePart.split(":").map(Number);
-    const minutes = timePart.split(":").map(Number)[1] || 0;
-    if ((ampm || "").toUpperCase() === "PM" && hh < 12) hh += 12;
-    if ((ampm || "").toUpperCase() === "AM" && hh === 12) hh = 0;
-    const d = new Date(yyyy, (mm || 1) - 1, dd || 1, hh || 0, minutes, 0);
-    return d.toISOString();
-  } catch {
-    return new Date().toISOString();
-  }
-}
+export type EventRow = {
+  _id: string;
+  eventName: string;
+  eventType: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  isActive: boolean;
+  state: string;
+  selectedGame: string;
+  image?: string | null;
+};
 
 function isoToDatetimeLocal(iso: string): string {
-  // Convert ISO (UTC or local) to local "YYYY-MM-DDTHH:MM"
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
   const yyyy = d.getFullYear();
@@ -43,216 +47,208 @@ function isoToDatetimeLocal(iso: string): string {
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
-// Seed with state + optional imageUrl so edit can prefill them
-const initialDisplayData = [
-  {
-    id: 1,
-    eventName: "Aura Bundle Event",
-    eventType: "Aura Bundle",
-    startTime: "01-02-2025 10:00 AM",
-    endTime: "01-02-2025 12:00 PM",
-    status: "Active",
-    state: "California",
-    imageUrl: "/aura-logo.png",
-  },
-  {
-    id: 2,
-    eventName: "Call Bundle Event",
-    eventType: "Call Bundle",
-    startTime: "02-02-2025 11:00 AM",
-    endTime: "02-02-2025 01:00 PM",
-    status: "Active",
-    state: "Texas",
-    imageUrl: "/aura-logo.png",
-  },
-  {
-    id: 3,
-    eventName: "Premium Bundle Event",
-    eventType: "Premium Bundle",
-    startTime: "03-02-2025 12:00 PM",
-    endTime: "03-02-2025 02:00 PM",
-    status: "Inactive",
-    state: "Florida",
-    imageUrl: "/aura-logo.png",
-  },
-];
-
-export type EventRow = {
-  id: number;
-  eventName: string;
-  eventType: string; // display label
-  startTimeISO: string;
-  endTimeISO: string;
-  status: "Active" | "Inactive";
-  state: string;
-  imageUrl?: string;
-};
-
 export function EventManagement() {
-  const [statusFilter, setStatusFilter] = useState("Active");
-  const [bundleFilter, setBundleFilter] = useState("Aura Bundle");
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const seeded = useMemo<EventRow[]>(
-    () =>
-      initialDisplayData.map((r) => ({
-        id: r.id,
-        eventName: r.eventName,
-        eventType: r.eventType,
-        startTimeISO: displayToISO(r.startTime),
-        endTimeISO: displayToISO(r.endTime),
-        status: r.status as "Active" | "Inactive",
-        state: r.state,
-        imageUrl: r.imageUrl,
-      })),
-    []
-  );
+  // Get filters from URL
+  const statusFilter = searchParams.get("status") || "all";
+  const bundleFilter = searchParams.get("eventType") || "all";
+  const currentPage = parseInt(searchParams.get("page") || "1");
+  const itemsPerPage = 5;
 
-  const [bundles, setBundles] = useState<EventRow[]>(seeded);
+  // Build query args
+  const queryArgs = [
+    { name: "page", value: currentPage.toString() },
+    { name: "limit", value: itemsPerPage.toString() },
+  ];
 
-  const [toggleStates, setToggleStates] = useState<Record<number, boolean>>(
-    seeded.reduce((acc, bundle) => {
-      acc[bundle.id] = bundle.status === "Active";
-      return acc;
-    }, {} as Record<number, boolean>)
-  );
-
-  // EDIT state
-  const [editOpen, setEditOpen] = useState(false);
-  const [editing, setEditing] = useState<EventRow | null>(null);
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
-
-  const handleToggle = (id: number) => {
-    setToggleStates((prev) => {
-      const next = !prev[id];
-      setBundles((rows) =>
-        rows.map((r) =>
-          r.id === id ? { ...r, status: next ? "Active" : "Inactive" } : r
-        )
-      );
-      return { ...prev, [id]: next };
+  if (statusFilter !== "all") {
+    queryArgs.push({
+      name: "isActive",
+      value: statusFilter === "Active" ? "true" : "false",
     });
+  }
+
+  if (bundleFilter !== "all") {
+    queryArgs.push({ name: "eventType", value: bundleFilter });
+  }
+
+  // API Hooks
+  const {
+    data: eventData,
+    isLoading,
+    refetch,
+  } = useGetAllEventManagementQuery(queryArgs);
+  const [createEvent] = useCreateEventManagementMutation();
+  const [updateEvent] = useUpdateEventManagementMutation();
+  const [toggleEventStatus] = useUpdateEventManagementStatusMutation();
+  const [deleteEvent] = useDeleteEventManagementMutation();
+
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventRow | null>(null);
+
+  // Update URL when filters change
+  const updateURL = (newParams: Record<string, string>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (value === "all" || value === "1") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+    router.push(`?${params.toString()}`, { scroll: false });
   };
 
-  // Pagination is handled directly in the UI components
+  const handleStatusFilterChange = (value: string) => {
+    updateURL({ status: value, page: "1" });
+  };
 
-  // Pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentBundles = bundles.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(bundles.length / itemsPerPage);
+  const handleBundleFilterChange = (value: string) => {
+    updateURL({ eventType: value, page: "1" });
+  };
 
-  // Headers
+  const handlePageChange = (page: number) => {
+    updateURL({ page: page.toString() });
+  };
+
+  // Toggle event status
+  const handleToggle = async (id: string, currentStatus: boolean) => {
+    try {
+      await toggleEventStatus({
+        id,
+        status: currentStatus ? "inactive" : "active",
+      }).unwrap();
+      toast.success("Event status updated successfully");
+      refetch();
+    } catch (error) {
+      toast.error("Failed to update event status");
+      console.error(error);
+    }
+  };
+
+  // UNIFIED SAVE FUNCTION (Create or Update)
+  const handleSaveEvent = async (values: CreateEventFormValues) => {
+    const isEditing = !!editingEvent;
+
+    try {
+      const formData = new FormData();
+
+      // Prepare event data
+      const eventData = {
+        eventName: values.eventName,
+        eventType: values.eventType,
+        state: values.state,
+        startDate: new Date(values.startDateTime).toISOString(),
+        endDate: new Date(values.endDateTime).toISOString(),
+        selectedGame: values.selectedGame || "kd",
+      };
+
+      formData.append("data", JSON.stringify(eventData));
+
+      // Append new image if provided
+      if (values.thumbnail) {
+        formData.append("image", values.thumbnail);
+      }
+
+      // Call appropriate API
+      if (isEditing) {
+        // Debug: Check if ID exists
+        if (!editingEvent?._id) {
+          toast.error("Event ID is missing");
+          console.error("Editing event:", editingEvent);
+          return;
+        }
+
+        console.log("Updating event with ID:", editingEvent._id);
+
+        await updateEvent({
+          id: editingEvent._id,
+          formData: formData,
+        }).unwrap();
+        toast.success("Event updated successfully");
+      } else {
+        await createEvent(formData as any).unwrap();
+        toast.success("Event created successfully");
+      }
+
+      // Close dialog and reset state
+      setDialogOpen(false);
+      setEditingEvent(null);
+      refetch();
+    } catch (error: any) {
+      const action = isEditing ? "update" : "create";
+      toast.error(error?.data?.message || `Failed to ${action} event`);
+      console.error(error);
+    }
+  };
+
+  // Open dialog for creating new event
+  const handleCreateClick = () => {
+    setEditingEvent(null);
+    setDialogOpen(true);
+  };
+
+  // Open dialog for editing existing event
+  const handleEditClick = (row: EventRow) => {
+    setEditingEvent(row);
+    setDialogOpen(true);
+  };
+
+  // DELETE EVENT
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this event?")) return;
+
+    try {
+      await deleteEvent(id).unwrap();
+      toast.success("Event deleted successfully");
+      refetch();
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to delete event");
+      console.error(error);
+    }
+  };
+
+  // Map API data to EventRow
+  const bundles: EventRow[] = eventData?.data || [];
+  const toggleStates: Record<string, boolean> =
+    bundles.reduce((acc, bundle) => {
+      acc[bundle._id] = bundle.isActive;
+      return acc;
+    }, {} as Record<string, boolean>) || {};
+
+  const totalPages = eventData?.pagination?.totalPage || 1;
+
   const headerNames = [
     "SL",
     "Event Name",
     "Event Type",
-    "Start Time",
-    "End Time",
+    "Start Date",
+    "End Date",
     "Status",
     "Actions",
   ];
 
-  // ADD submit
-  const handleCreateEvent = async (values: CreateEventFormValues) => {
-    const nextId = Math.max(0, ...bundles.map((b) => b.id)) + 1;
-    const eventTypeLabel =
-      values.eventType === "unlimited_ad_time"
-        ? "Unlimited Ad Time"
-        : values.eventType === "limited_slots"
-        ? "Limited Slots"
-        : values.eventType === "premium"
-        ? "Premium Event"
-        : values.eventType;
-
-    const newRow: EventRow = {
-      id: nextId,
-      eventName: values.eventName,
-      eventType: eventTypeLabel,
-      startTimeISO: values.startDateTime, // already in datetime-local format; fine to store
-      endTimeISO: values.endDateTime,
-      status: "Active",
-      state: values.state,
-      imageUrl: "/aura-logo.png", // optional: set default or from upload response
-    };
-
-    setBundles((prev) => [newRow, ...prev]);
-    setToggleStates((prev) => ({ ...prev, [nextId]: true }));
-  };
-
-  // Edit open
-  const handleEditClick = (row: EventRow) => {
-    setEditing(row);
-    setEditOpen(true);
-  };
-
-  // Edit submit
-  const handleUpdateEvent = async (values: CreateEventFormValues) => {
-    if (!editing) return;
-    const eventTypeLabel =
-      values.eventType === "unlimited_ad_time"
-        ? "Unlimited Ad Time"
-        : values.eventType === "limited_slots"
-        ? "Limited Slots"
-        : values.eventType === "premium"
-        ? "Premium Event"
-        : values.eventType;
-
-    setBundles((rows) =>
-      rows.map((r) =>
-        r.id === editing.id
-          ? {
-              ...r,
-              eventName: values.eventName,
-              eventType: eventTypeLabel,
-              startTimeISO: values.startDateTime,
-              endTimeISO: values.endDateTime,
-              state: values.state,
-            }
-          : r
-      )
-    );
-
-    setEditOpen(false);
-    setEditing(null);
-  };
-
-  // Delete
-  const handleDelete = (id: number) => {
-    setBundles((rows) => rows.filter((r) => r.id !== id));
-    setToggleStates((prev) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [id]: removed, ...rest } = prev;
-      return rest;
-    });
-    if (editing?.id === id) {
-      setEditOpen(false);
-      setEditing(null);
-    }
-  };
-
-  // Prefill for edit
-  const editInitialValues: Partial<CreateEventFormValues> | undefined = editing
-    ? {
-        eventName: editing.eventName,
-        eventType:
-          editing.eventType === "Unlimited Ad Time"
-            ? "unlimited_ad_time"
-            : editing.eventType === "Limited Slots"
-            ? "limited_slots"
-            : "premium",
-        state: editing.state,
-        startDateTime: isoToDatetimeLocal(editing.startTimeISO),
-        endDateTime: isoToDatetimeLocal(editing.endTimeISO),
-      }
-    : undefined;
+  // Prepare initial values for dialog (empty for create, populated for edit)
+  const dialogInitialValues: Partial<CreateEventFormValues> | undefined =
+    editingEvent
+      ? {
+          eventName: editingEvent.eventName,
+          eventType: editingEvent.eventType,
+          state: editingEvent.state,
+          startDateTime: isoToDatetimeLocal(editingEvent.startDate),
+          endDateTime: isoToDatetimeLocal(editingEvent.endDate),
+          selectedGame: editingEvent.selectedGame || "kd",
+        }
+      : undefined;
 
   return (
     <div className="w-full mx-auto space-y-2 my-5">
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-end">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger className="w-32 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-white" />
@@ -260,12 +256,13 @@ export function EventManagement() {
             </div>
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="Active">Active</SelectItem>
             <SelectItem value="Inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>
 
-        <Select value={bundleFilter} onValueChange={setBundleFilter}>
+        <Select value={bundleFilter} onValueChange={handleBundleFilterChange}>
           <SelectTrigger className="w-40 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 py-6">
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-white" />
@@ -273,60 +270,75 @@ export function EventManagement() {
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Aura Bundle">Aura Bundle</SelectItem>
-            <SelectItem value="Call Bundle">Call Bundle</SelectItem>
-            <SelectItem value="Premium Bundle">Premium Bundle</SelectItem>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="Unlimited Ad Time">Unlimited Ad Time</SelectItem>
+            <SelectItem value="Unlimited Games">Unlimited Games</SelectItem>
+            <SelectItem value="Unlimited Select City">
+              Unlimited Select City
+            </SelectItem>
+            <SelectItem value="Off APshop">Off APshop</SelectItem>
           </SelectContent>
         </Select>
 
-        {/* ADD */}
-        <CreateEventDialog
-          trigger={
-            <Button className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 px-6 hover:bg-white/30 transition-all duration-200">
-              Create New Event
-            </Button>
-          }
-          onSubmit={handleCreateEvent}
-        />
+        <Button
+          onClick={handleCreateClick}
+          className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 px-6 hover:bg-white/30 transition-all duration-200"
+        >
+          Create New Event
+        </Button>
       </div>
 
       <div className="flex flex-col justify-end items-end">
-        {/* Table */}
-        <Table
-          bundles={currentBundles}
-          toggleStates={toggleStates}
-          handleToggle={handleToggle}
-          headerNames={headerNames}
-          onEdit={handleEditClick}
-          onDelete={handleDelete}
-        />
+        {isLoading ? (
+          <div className="text-center text-white py-8">Loading events...</div>
+        ) : (
+          <>
+            <Table
+              bundles={bundles}
+              toggleStates={toggleStates}
+              handleToggle={handleToggle}
+              headerNames={headerNames}
+              onEdit={handleEditClick}
+              onDelete={handleDelete}
+            />
 
-        {/* Pagination */}
-        <div className="flex justify-center mt-6 space-x-3">
-          {Array.from({ length: totalPages }, (_, index) => (
-            <Button
-              key={index}
-              onClick={() => setCurrentPage(index + 1)}
-              className={`${
-                currentPage === index + 1
-                  ? "bg-cyan-500 text-white"
-                  : "bg-white/20 text-white"
-              } rounded-lg px-4 py-2 hover:bg-cyan-400 transition-colors`}
-            >
-              {index + 1}
-            </Button>
-          ))}
-        </div>
+            {/* Pagination */}
+            {/* {totalPages > 1 && (
+              <div className="flex justify-center mt-6 space-x-3">
+                {Array.from({ length: totalPages }, (_, index) => (
+                  <Button
+                    key={index}
+                    onClick={() => handlePageChange(index + 1)}
+                    className={`${
+                      currentPage === index + 1
+                        ? "bg-cyan-500 text-white"
+                        : "bg-white/20 text-white"
+                    } rounded-lg px-4 py-2 hover:bg-cyan-400 transition-colors`}
+                  >
+                    {index + 1}
+                  </Button>
+                ))}
+              </div>
+            )} */}
+            <CustomPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </>
+        )}
       </div>
 
-      {/* EDIT (controlled) */}
+      {/* UNIFIED Dialog for Create and Edit */}
       <CreateEventDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        initialValues={editInitialValues}
-        onSubmit={handleUpdateEvent}
-        // show existing image preview if you have it
-        initialImageUrl={editing?.imageUrl}
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingEvent(null);
+        }}
+        initialValues={dialogInitialValues}
+        onSubmit={handleSaveEvent}
+        initialImageUrl={editingEvent?.image || undefined}
       />
     </div>
   );

@@ -2,23 +2,27 @@ import { Button } from "@/components/ui/button";
 import { Edit3, Trash2 } from "lucide-react";
 
 export type PromoRow = {
-  id: number;
+  id: string;
   promoCode: string;
   type: "Percentage" | "Flat";
   usageLimit: number;
+  startISO: string;
+  endISO: string;
   startTime: string; // display string
   endTime: string; // display string
   status: "Active" | "Inactive";
+  value: number;
+  usedCount: number;
   imageUrl?: string; // optional thumbnail preview
 };
 
 interface TableProps {
   promos: PromoRow[];
-  toggleStates: Record<number, boolean>;
-  handleToggle: (id: number) => void;
+  toggleStates: Record<string, boolean>;
+  handleToggle: (id: string) => void;
   headerNames: string[];
   onEdit: (row: PromoRow) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
 }
 
 export function Table({
@@ -50,7 +54,7 @@ export function Table({
       {/* Body */}
       <div className="bg-white/20 backdrop-blur-md rounded-xl border border-white/20 overflow-x-auto max-w-full">
         <div className="p-4 space-y-4">
-          {promos.map((p) => (
+          {promos?.map((p) => (
             <div
               key={p.id}
               className="bg-white/90 backdrop-blur-sm rounded-lg border border-white/20 p-2 hover:bg-white/95 transition-all duration-200"
@@ -112,7 +116,7 @@ export function Table({
             </div>
           ))}
 
-          {promos.length === 0 && (
+          {promos?.length === 0 && (
             <div className="text-center text-white/90 py-6">
               No promo codes found.
             </div>
