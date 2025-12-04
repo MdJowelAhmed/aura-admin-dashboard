@@ -21,6 +21,7 @@ import {
   useDeleteEventManagementMutation,
 } from "@/lib/store/eventManagement/eventManagementApi";
 import { toast } from "sonner";
+import CustomPagination from "@/components/share/CustomPagination";
 
 export type EventRow = {
   _id: string;
@@ -31,7 +32,7 @@ export type EventRow = {
   status: string;
   isActive: boolean;
   state: string;
-  selectedGame: string;  
+  selectedGame: string;
   image?: string | null;
 };
 
@@ -54,7 +55,7 @@ export function EventManagement() {
   const statusFilter = searchParams.get("status") || "all";
   const bundleFilter = searchParams.get("eventType") || "all";
   const currentPage = parseInt(searchParams.get("page") || "1");
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
 
   // Build query args
   const queryArgs = [
@@ -63,7 +64,10 @@ export function EventManagement() {
   ];
 
   if (statusFilter !== "all") {
-    queryArgs.push({ name: "isActive", value: statusFilter === "Active" ? "true" : "false" });
+    queryArgs.push({
+      name: "isActive",
+      value: statusFilter === "Active" ? "true" : "false",
+    });
   }
 
   if (bundleFilter !== "all") {
@@ -71,7 +75,11 @@ export function EventManagement() {
   }
 
   // API Hooks
-  const { data: eventData, isLoading, refetch } = useGetAllEventManagementQuery(queryArgs);
+  const {
+    data: eventData,
+    isLoading,
+    refetch,
+  } = useGetAllEventManagementQuery(queryArgs);
   const [createEvent] = useCreateEventManagementMutation();
   const [updateEvent] = useUpdateEventManagementMutation();
   const [toggleEventStatus] = useUpdateEventManagementStatusMutation();
@@ -124,7 +132,7 @@ export function EventManagement() {
   // UNIFIED SAVE FUNCTION (Create or Update)
   const handleSaveEvent = async (values: CreateEventFormValues) => {
     const isEditing = !!editingEvent;
-    
+
     try {
       const formData = new FormData();
 
@@ -155,10 +163,10 @@ export function EventManagement() {
         }
 
         console.log("Updating event with ID:", editingEvent._id);
-        
-        await updateEvent({ 
-          id: editingEvent._id, 
-          formData: formData 
+
+        await updateEvent({
+          id: editingEvent._id,
+          formData: formData,
         } as any).unwrap();
         toast.success("Event updated successfully");
       } else {
@@ -224,16 +232,17 @@ export function EventManagement() {
   ];
 
   // Prepare initial values for dialog (empty for create, populated for edit)
-  const dialogInitialValues: Partial<CreateEventFormValues> | undefined = editingEvent
-    ? {
-        eventName: editingEvent.eventName,
-        eventType: editingEvent.eventType,
-        state: editingEvent.state,
-        startDateTime: isoToDatetimeLocal(editingEvent.startDate),
-        endDateTime: isoToDatetimeLocal(editingEvent.endDate),
-        selectedGame: editingEvent.selectedGame || "kd",
-      }
-    : undefined;
+  const dialogInitialValues: Partial<CreateEventFormValues> | undefined =
+    editingEvent
+      ? {
+          eventName: editingEvent.eventName,
+          eventType: editingEvent.eventType,
+          state: editingEvent.state,
+          startDateTime: isoToDatetimeLocal(editingEvent.startDate),
+          endDateTime: isoToDatetimeLocal(editingEvent.endDate),
+          selectedGame: editingEvent.selectedGame || "kd",
+        }
+      : undefined;
 
   return (
     <div className="w-full mx-auto space-y-2 my-5">
@@ -264,12 +273,14 @@ export function EventManagement() {
             <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="Unlimited Ad Time">Unlimited Ad Time</SelectItem>
             <SelectItem value="Unlimited Games">Unlimited Games</SelectItem>
-            <SelectItem value="Unlimited Select City">Unlimited Select City</SelectItem>
+            <SelectItem value="Unlimited Select City">
+              Unlimited Select City
+            </SelectItem>
             <SelectItem value="Off APshop">Off APshop</SelectItem>
           </SelectContent>
         </Select>
 
-        <Button 
+        <Button
           onClick={handleCreateClick}
           className="bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl h-12 px-6 hover:bg-white/30 transition-all duration-200"
         >
@@ -292,7 +303,7 @@ export function EventManagement() {
             />
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {/* {totalPages > 1 && (
               <div className="flex justify-center mt-6 space-x-3">
                 {Array.from({ length: totalPages }, (_, index) => (
                   <Button
@@ -308,7 +319,12 @@ export function EventManagement() {
                   </Button>
                 ))}
               </div>
-            )}
+            )} */}
+            <CustomPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
           </>
         )}
       </div>
