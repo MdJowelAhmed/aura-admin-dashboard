@@ -16,6 +16,7 @@ export const api = createApi({
   tagTypes: [
     "Products",
     "Users",
+    "User",
     "Orders",
     "Brands",
     "Category",
