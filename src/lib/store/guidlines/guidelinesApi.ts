@@ -34,7 +34,7 @@ const guidelinesApi = api.injectEndpoints({
 
     updateGuidelineStatus: build.mutation<
       TermsResponse,
-      { id: string; status: string }
+      { id: string; content: string }
     >({
       query: (data) => ({
         url: `/rule/terms-and-conditions`,

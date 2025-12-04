@@ -8,6 +8,7 @@ import {
   useCreateGuidelineMutation,
   useUpdateGuidelineStatusMutation,
 } from "@/lib/store/guidlines/guidelinesApi";
+import { toast } from "sonner";
 
 const CommunityGuidelinesEditor: React.FC = () => {
   const [content, setContent] = useState<string>("");
@@ -15,9 +16,12 @@ const CommunityGuidelinesEditor: React.FC = () => {
   const [guidelineId, setGuidelineId] = useState<string | null>(null);
 
   // API hooks
-  const { data: guidelinesData, isLoading: isFetching } = useGetAllGuidelinesQuery();
-  const [createGuideline, { isLoading: isCreating }] = useCreateGuidelineMutation();
-  const [updateGuideline, { isLoading: isUpdating }] = useUpdateGuidelineStatusMutation();
+  const { data: guidelinesData, isLoading: isFetching } =
+    useGetAllGuidelinesQuery();
+  const [createGuideline, { isLoading: isCreating }] =
+    useCreateGuidelineMutation();
+  const [updateGuideline, { isLoading: isUpdating }] =
+    useUpdateGuidelineStatusMutation();
 
   // Load existing guidelines
   useEffect(() => {
@@ -33,18 +37,20 @@ const CommunityGuidelinesEditor: React.FC = () => {
         // Update existing guideline
         await updateGuideline({
           id: guidelineId,
-           content,
+          content,
         }).unwrap();
-        alert("Guidelines updated successfully!");
+        toast.success("Guidelines updated successfully!");
+          setShowPreview(true);
       } else {
         // Create new guideline
-        const response = await createGuideline(content ).unwrap();
+        const response = await createGuideline({ content }).unwrap();
         setGuidelineId(response.data._id);
-        alert("Guidelines created successfully!");
+        toast.success("Guidelines created successfully!");
+        setShowPreview(true);
       }
     } catch (error) {
       console.error("Error saving guidelines:", error);
-      alert("Error saving guidelines. Please try again.");
+      toast.error("Error saving guidelines. Please try again.");
     }
   };
 
@@ -62,17 +68,17 @@ const CommunityGuidelinesEditor: React.FC = () => {
 
   const isLoading = isCreating || isUpdating;
 
-  if (isFetching) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading guidelines...</div>
-      </div>
-    );
-  }
+  // if (isFetching) {
+  //   return (
+  //     <div className="h-screen flex items-center justify-center">
+  //       <div className="text-white text-xl">Loading guidelines...</div>
+  //     </div>
+  //   );
+  // }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen ">
+      <div className="">
         <div className="bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 p-8 shadow-2xl">
           {/* Header */}
           <div className="mb-8">
@@ -83,7 +89,8 @@ const CommunityGuidelinesEditor: React.FC = () => {
               </h1>
             </div>
             <p className="text-white/70">
-              Create and format your community guidelines with our modern rich text editor
+              Create and format your community guidelines with our modern rich
+              text editor
             </p>
           </div>
 
@@ -122,7 +129,7 @@ const CommunityGuidelinesEditor: React.FC = () => {
           <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-xl overflow-hidden">
             {showPreview ? (
               <div className="p-8">
-                <div className="bg-white/10 rounded-lg p-6 min-h-[500px]">
+                <div className=" rounded-lg  min-h-[500px]">
                   <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                     <Eye className="w-5 h-5" />
                     Preview
@@ -135,7 +142,9 @@ const CommunityGuidelinesEditor: React.FC = () => {
                   ) : (
                     <div className="flex flex-col items-center justify-center h-64 text-center">
                       <FileText className="w-16 h-16 text-white/20 mb-4" />
-                      <p className="text-white/50 text-lg">No content to preview</p>
+                      <p className="text-white/50 text-lg">
+                        No content to preview
+                      </p>
                       <p className="text-white/30 text-sm mt-2">
                         Switch to edit mode to start writing
                       </p>
@@ -157,11 +166,15 @@ const CommunityGuidelinesEditor: React.FC = () => {
             <div className="flex gap-6 text-sm text-white/60">
               <span>
                 Characters:{" "}
-                <span className="text-white/80 font-medium">{getCharCount(content)}</span>
+                <span className="text-white/80 font-medium">
+                  {getCharCount(content)}
+                </span>
               </span>
               <span>
                 Words:{" "}
-                <span className="text-white/80 font-medium">{getWordCount(content)}</span>
+                <span className="text-white/80 font-medium">
+                  {getWordCount(content)}
+                </span>
               </span>
               <span>
                 Status:{" "}
@@ -175,27 +188,29 @@ const CommunityGuidelinesEditor: React.FC = () => {
               </span>
             </div>
 
-            <Button
-              onClick={handleSave}
-              disabled={!content.trim() || isLoading}
-              className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 ${
-                !content.trim() || isLoading
-                  ? "bg-white/20 text-white/60 cursor-not-allowed"
-                  : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              }`}
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  {guidelineId ? "Update Guidelines" : "Save Guidelines"}
-                </>
-              )}
-            </Button>
+            {!showPreview && (
+              <Button
+                onClick={handleSave}
+                disabled={!content.trim() || isLoading}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 ${
+                  !content.trim() || isLoading
+                    ? "bg-white/20 text-white/60 cursor-not-allowed"
+                    : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                }`}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    {guidelineId ? "Update Guidelines" : "Save Guidelines"}
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </div>
