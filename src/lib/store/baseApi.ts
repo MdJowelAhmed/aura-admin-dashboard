@@ -28,6 +28,7 @@ export const api = createApi({
     "Messages",
     "DashboardOverview",
     "EventManagement",
+    "Guidelines",
   ],
   endpoints: () => ({}),
 });

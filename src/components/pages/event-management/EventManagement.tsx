@@ -167,7 +167,7 @@ export function EventManagement() {
         await updateEvent({
           id: editingEvent._id,
           formData: formData,
-        } as any).unwrap();
+        }).unwrap();
         toast.success("Event updated successfully");
       } else {
         await createEvent(formData as any).unwrap();
