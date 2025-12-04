@@ -8,14 +8,24 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useForgotPasswordMutation, useVerifyOTPMutation } from "@/lib/store/apiSlice/authSlice";
+import { toast } from "sonner";
 
 export function VerifyOTPForm() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
+  const [email, setEmail] = useState<string | null>(null);
+  const [verifyOTP] = useVerifyOTPMutation();
+  const [resendOTP] = useForgotPasswordMutation();
 
   useEffect(() => {
+    // Get email from URL params
+    if (typeof window !== "undefined") {
+      const emailParam = new URLSearchParams(location.search).get("email");
+      setEmail(emailParam);
+    }
     // Focus first input on mount
     if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
@@ -73,24 +83,40 @@ export function VerifyOTPForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const otpValue = otp.join("");
-    if (otpValue.length === 6) {
+    if (otpValue.length === 6 && email) {
       setIsSubmitting(true);
-      // Handle OTP verification logic here
-      console.log("OTP verification attempt:", { otp: otpValue });
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setIsSubmitting(false);
-      // Handle successful verification here
-      router.push("/auth/reset-password");
+      try {
+        const response = await verifyOTP({ email, oneTimeCode: otpValue }).unwrap();
+        if (response?.success) {
+          toast.success(response.message || "OTP verified successfully");
+          localStorage.setItem("authToken", response?.data?.resetToken || "");
+          router.push("/auth/reset-password");
+        } else {
+          toast.error(response?.message || "Failed to verify OTP");
+        }
+      } catch (error) {
+        const errorData = error as { data?: { message?: string } };
+        toast.error(errorData?.data?.message || "Failed to verify OTP");
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
-  const handleResend = () => {
-    console.log("Resending OTP...");
-    // Handle resend logic here
-    setOtp(["", "", "", "", "", ""]);
-    inputRefs.current[0]?.focus();
+  const handleResend = async () => {
+    if (!email) {
+      toast.error("Email not found. Please go back to forgot password.");
+      return;
+    }
+    try {
+      await resendOTP({ email }).unwrap();
+      setOtp(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+      toast.success("OTP resent successfully");
+    } catch (error) {
+      const errorData = error as { data?: { message?: string } };
+      toast.error(errorData?.data?.message || "Failed to resend OTP");
+    }
   };
 
   const isComplete = otp.every((digit) => digit !== "");

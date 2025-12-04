@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 
@@ -39,28 +40,23 @@ const ConfirmLogoutModal = ({
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[999] flex items-center justify-center"
+      className="fixed inset-0 z-[99999] flex items-center justify-center"
       onClick={onClose}
       aria-modal="true"
       role="dialog"
       aria-labelledby="logout-title"
       aria-describedby="logout-desc"
     >
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
-      {/* Dialog */}
       <div
         ref={dialogRef}
         onClick={stop}
         className="relative mx-4 w-full max-w-sm rounded-xl border border-white/20 bg-white/10 backdrop-blur-md shadow-2xl"
       >
         <div className="px-4 py-8 flex flex-col items-center">
-          {/* <h3 id="logout-title" className="text-xl font-semibold text-white">
-            Confirm Logout
-          </h3> */}
           <Image
             src="/LogOutIcon.png"
             alt="Aura Logo"
@@ -92,7 +88,8 @@ const ConfirmLogoutModal = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

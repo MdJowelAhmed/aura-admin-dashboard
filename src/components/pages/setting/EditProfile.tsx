@@ -274,6 +274,7 @@ const ProfileEditForm = () => {
           <Input
             id="email"
             type="email"
+            disabled
             value={profileData.email}
             onChange={(e) =>
               handleProfileChange("email", e.target.value)

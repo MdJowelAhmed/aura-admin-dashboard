@@ -8,13 +8,26 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Key } from "lucide-react";
+import { useForgotPasswordMutation } from "@/lib/store/apiSlice/authSlice";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
+  const [forgotPassword, { isLoading }] = useForgotPasswordMutation();
+  const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle login logic here
+    forgotPassword({ email }).unwrap().then((response) => {
+      if (response?.success) {
+        toast.success("OTP has been sent to your email");
+        router.push(`/auth/verify-otp?email=${encodeURIComponent(email)}`);
+      } else {
+        toast.error(response?.message || "Failed to send OTP");
+      }
+    });
     console.log("Login attempt:", { email });
   };
 

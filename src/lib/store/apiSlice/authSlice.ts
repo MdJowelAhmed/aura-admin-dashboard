@@ -73,6 +73,24 @@ export type ChangePasswordRequest = {
   confirmPassword: string;
 };
 
+export type VerifyOTPRequest = {
+  email: string;
+  otp: string;
+};
+
+export type VerifyOTPResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    accessToken: string;
+  };
+};
+
+export type ResetPasswordRequest = {
+  newPassword: string;
+  confirmPassword: string;
+};
+
 export const authApi = api.injectEndpoints({
   endpoints: (builder) => ({
     login: builder.mutation<LoginResponse, LoginRequest>({
@@ -109,6 +127,46 @@ export const authApi = api.injectEndpoints({
         body: passwords,
       }),
       invalidatesTags: ["User"],
+    }),
+    forgotPassword: builder.mutation<{ success: boolean }, { email: string }>({
+      query: (email) => ({
+        url: "/auth/forgot-password",
+        method: "POST",
+        body: email,
+      }),
+      invalidatesTags: ["User"],
+    }),
+    verifyOTP: builder.mutation<VerifyOTPResponse, VerifyOTPRequest>({
+      query: (data) => ({
+        url: "/auth/verify-email",
+        method: "POST",
+        body: data,
+      }),
+      async onQueryStarted(arg, { queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          const access = data.data.accessToken;
+          if (typeof window !== "undefined") {
+            localStorage.setItem("accessToken", access);
+          }
+        } catch {
+          // ignore - hook consumer handles errors
+        }
+      },
+      invalidatesTags: ["User"],
+    }),
+    resetPassword: builder.mutation<{ success: boolean; message: string }, ResetPasswordRequest>({
+      query: (data) => {
+        const token = localStorage.getItem("authToken");
+        return {
+          url: "/auth/reset-password",
+          method: "POST",
+          headers: {
+            Authorization: token ?? "",
+          },
+          body: data,
+        };
+      },
     }),
     getMyProfile: builder.query<User, void>({
       query: () => ({
@@ -150,5 +208,8 @@ export const {
   useChangePasswordMutation,
   useGetMyProfileQuery,
   useUpdateMyProfileMutation,
+  useForgotPasswordMutation,
+  useVerifyOTPMutation,
+  useResetPasswordMutation,
 
 } = authApi;

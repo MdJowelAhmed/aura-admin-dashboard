@@ -35,9 +35,11 @@ const Navbar = () => {
     try {
       // Call the logout mutation which clears tokens from API, storage & state
       await logout().unwrap();
+      // localStorage.removeItem("accessToken");
     } catch (error) {
       console.error("Logout error:", error);
       // Even if API fails, clear local state
+
       dispatch(logoutAction());
     } finally {
       // Navigate to login regardless of API outcome

@@ -9,6 +9,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, Key } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useResetPasswordMutation } from "@/lib/store/apiSlice/authSlice";
+import { toast } from "sonner";
 
 export function ResetPasswordForm() {
   const [password, setPassword] = useState("");
@@ -16,14 +18,50 @@ export function ResetPasswordForm() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showPassword2, setShowPassword2] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const router = useRouter();
+  const [resetPassword] = useResetPasswordMutation();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle password reset logic here
-    console.log("Password reset attempt:", { password, confirmPassword });
-    router.push("/auth/login");
+
+    // Validation
+    if (!password || !confirmPassword) {
+      toast.error("Both password fields are required");
+      return;
+    }
+
+    
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await resetPassword({
+        newPassword: password,
+        confirmPassword: confirmPassword,
+      }).unwrap();
+
+      if (response?.success) {
+        toast.success(response.message || "Password reset successfully");
+        router.push("/auth/login");
+      } else {
+        toast.error(response?.message || "Failed to reset password");
+      }
+    } catch (error) {
+      const errorData = error as { data?: { message?: string } };
+      toast.error(errorData?.data?.message || "Failed to reset password");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -97,9 +135,21 @@ export function ResetPasswordForm() {
         {/* Reset Password Button */}
         <Button
           type="submit"
-          className="w-full h-12 border bg-sky-400 hover:bg-sky-500 text-neutral-50 font-semibold text-lg transition-colors"
+          disabled={isSubmitting}
+          className={`w-full h-12 border font-semibold text-lg transition-all duration-200 ${
+            isSubmitting
+              ? "bg-neutral-400/50 text-neutral-300 cursor-not-allowed"
+              : "bg-sky-400 hover:bg-sky-500 text-neutral-50"
+          }`}
         >
-          Reset Password
+          {isSubmitting ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              Resetting...
+            </div>
+          ) : (
+            "Reset Password"
+          )}
         </Button>
 
         {/* Back to Login Link */}
