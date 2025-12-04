@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
+import { getImageUrl } from "@/components/share/imageUrl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +9,7 @@ import {
   useUpdateMyProfileMutation,
 } from "@/lib/store/apiSlice/authSlice";
 import { Edit3, User } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -99,18 +101,24 @@ const ProfileEditForm = () => {
     try {
       const formData = new FormData();
       
-      // Add all profile data to FormData
-      formData.append("firstName", profileData.firstName);
-      formData.append("lastName", profileData.lastName);
-      formData.append("email", profileData.email);
-      formData.append("phoneNumber", profileData.phoneNumber);
+     
+      const profileUpdateData = {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        email: profileData.email,
+        phoneNumber: profileData.phoneNumber,
+      };
+      if(profileUpdateData){
+        formData.append("data", JSON.stringify(profileUpdateData));
+      }
       
       // Add image if a new one was selected
       if (profileImageFile) {
-        formData.append("profile", profileImageFile);
+        formData.append("image", profileImageFile);
       }
-
+      console.log("formData", formData);
       const response = await updateMyProfile(formData).unwrap();
+      console.log("response", response);
       
       if (response.success) {
         toast.success(response.message || "Profile updated successfully");
@@ -160,10 +168,11 @@ const ProfileEditForm = () => {
         <div className="relative">
           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center overflow-hidden">
             {profileImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profileImageUrl}
+              <Image
+                src={getImageUrl(profileImageUrl)}
                 alt="Profile preview"
+                height={100}
+                width={100}
                 className="w-full h-full object-cover"
               />
             ) : (

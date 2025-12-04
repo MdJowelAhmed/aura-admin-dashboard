@@ -64,13 +64,13 @@ const ChangePasswordForm = () => {
 
     try {
       const response = await changePassword({
-        currentPassword: passwordData.currentPassword,
+        oldPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
         confirmPassword: passwordData.confirmPassword,
       }).unwrap();
 
       if (response.success) {
-        toast.success(response.message || "Password changed successfully");
+        toast.success("Password changed successfully");
         // Reset form
         setPasswordData({
           currentPassword: "",

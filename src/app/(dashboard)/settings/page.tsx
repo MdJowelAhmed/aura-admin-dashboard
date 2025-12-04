@@ -1,6 +1,6 @@
 
 import ProfilePage from "@/components/pages/setting/ProfilePage";
-import SettingManagement from "@/components/pages/setting/SettingManagement";
+
 
 const page = () => {
   return (
