@@ -35,7 +35,7 @@ export function Table({
       {/* Header */}
       <div className="bg-white/20 mt-4 rounded-lg backdrop-blur-sm px-6 py-4 mb-2 border border-white/30">
         {/* 7 columns to match headers */}
-        <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_80px_160px] gap-4 text-[16px] font-medium text-white">
+        <div className="grid grid-cols-[120px_1fr_1fr_1fr_1fr_80px_160px] gap-4 text-[16px] font-medium text-white">
           {headerNames.map((header, i) => (
             <div
               key={i}
@@ -57,7 +57,7 @@ export function Table({
               key={row.id}
               className="bg-white/90 backdrop-blur-sm rounded-lg border border-white/20 p-2 hover:bg-white/95 transition-all duration-200"
             >
-              <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_80px_160px] gap-4 items-center text-sm">
+              <div className="grid grid-cols-[120px_1fr_1fr_1fr_1fr_80px_160px] gap-4 items-center text-sm">
                 {/* SL */}
                 {/* <div className="text-[#100F0E] font-medium ml-3">{row.id}</div> */}
 
