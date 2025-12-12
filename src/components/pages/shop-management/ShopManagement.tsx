@@ -25,6 +25,7 @@ import {
   type ShopManagement,
 } from "@/lib/store/shopManagement/shopManagementApi";
 import { toast } from "sonner"; // or your toast library
+import CustomPagination from "@/components/share/CustomPagination";
 
 // Helpers
 function formatDate(d: string | Date): string {
@@ -62,7 +63,7 @@ export function ShopManagement() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Status");
   const [bundleFilter, setBundleFilter] = useState<BundleFilter>("All");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(3);
 
   // Edit modal state
   const [editAuraOpen, setEditAuraOpen] = useState(false);
@@ -375,7 +376,7 @@ export function ShopManagement() {
         />
 
         {/* Pagination */}
-        <div className="flex justify-center mt-6 space-x-3">
+        {/* <div className="flex justify-center mt-6 space-x-3">
           {Array.from({ length: totalPages }, (_, index) => (
             <Button
               key={index}
@@ -389,7 +390,13 @@ export function ShopManagement() {
               {index + 1}
             </Button>
           ))}
-        </div>
+        </div> */}
+
+        <CustomPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {/* EDIT dialogs (controlled) */}

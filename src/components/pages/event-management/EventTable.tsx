@@ -2,6 +2,8 @@
 import { Button } from "@/components/ui/button";
 import { Edit3, Trash2 } from "lucide-react";
 import { EventRow } from "./EventManagement";
+import Image from "next/image";
+import { getImageUrl } from "@/components/share/imageUrl";
 
 interface TableProps {
   bundles: EventRow[];
@@ -67,9 +69,11 @@ export function Table({
                 </div>
                 <div className="text-[#100F0E] font-medium flex items-center gap-2">
                   {bundle.image && (
-                    <img
-                      src={`${process.env.NEXT_PUBLIC_API_URL || ""}${bundle.image}`}
+                    <Image
+                      src={getImageUrl(bundle.image)}
                       alt={bundle.eventName}
+                      width={36}
+                      height={36}
                       className="w-9 h-9 rounded-full object-cover"
                     />
                   )}
