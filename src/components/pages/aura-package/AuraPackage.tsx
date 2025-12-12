@@ -22,6 +22,7 @@ import {
   useDeleteShopPackageMutation,
   type Promo,
 } from "@/lib/store/auraShopPackage/auraShopPackageApi";
+import CustomPagination from "@/components/share/CustomPagination";
 
 type StatusFilter = "Status" | "Active" | "Inactive";
 
@@ -41,7 +42,7 @@ export function AuraPackage() {
   // Get values from URL or set defaults
   const currentPage = Number(searchParams.get("page")) || 1;
   const statusFilter = (searchParams.get("status") as StatusFilter) || "Status";
-  const itemsPerPage = 5;
+  const itemsPerPage = 3;
 
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<PackageRow | null>(null);
@@ -236,7 +237,7 @@ export function AuraPackage() {
         />
 
         {/* Pagination */}
-        <div className="flex justify-center mt-6 space-x-3">
+        {/* <div className="flex justify-center mt-6 space-x-3">
           {Array.from({ length: totalPages }, (_, index) => (
             <Button
               key={index}
@@ -250,7 +251,13 @@ export function AuraPackage() {
               {index + 1}
             </Button>
           ))}
-        </div>
+        </div> */}
+
+        <CustomPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
       </div>
 
       {/* Edit Dialog */}
